@@ -32,7 +32,7 @@ def connect():
     finally:
         if conn is not None:
             print("Database Connection Established...")
-            return conn
+            return engine, conn
         
 
 if __name__ == '__main__':
