@@ -18,7 +18,7 @@ def connect():
         connection_string = f'postgresql://{params['user']}:{params['password']}@{params['host']}:{params['port']}/{params['database']}'
         engine = create_engine(connection_string)
         
-        print(f"Connection parameters: {params} (!!!Remove in production!!!)")
+        # print(f"Connection parameters: {params} (!!!Remove in production!!!)")
         conn = engine.connect()
 
         # display the PostgreSQL database server version
