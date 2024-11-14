@@ -2,13 +2,22 @@ import os
 import boto3
 from botocore.exceptions import NoCredentialsError
 
+s3_config = {
+    'bucket_name': 'credpulse-test', 
+    'folder_prefix': '', 
+    'local_dir': './test', 
+    'aws_access_key_id': 'AKIAYPLVC5CQLX3SD37V', 
+    'aws_secret_access_key': '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', 
+    'aws_region': 'us-east-1'
+}
+
 def download_test_data(
-        bucket_name='credpulse-reports-bucket', 
-        folder_prefix='test', 
-        local_dir='./test/test_data', 
-        aws_access_key_id='AKIAYPLVC5CQLX3SD37V', 
-        aws_secret_access_key='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', 
-        aws_region='us-east-1'):
+        bucket_name=s3_config['bucket_name'], 
+        folder_prefix=s3_config['folder_prefix'], 
+        local_dir=s3_config['local_dir'], 
+        aws_access_key_id=s3_config['aws_access_key_id'], 
+        aws_secret_access_key=s3_config['aws_secret_access_key'], 
+        aws_region=s3_config['aws_region']):
     """
     Connects to an S3 bucket, fetches all files, and saves them to a local directory.
     
@@ -69,5 +78,48 @@ def download_test_data(
     except Exception as e:
         print(f"Error downloading files from S3: {e}")
 
+def upload_test_data(
+        bucket_name=s3_config['bucket_name'], 
+        folder_prefix=s3_config['folder_prefix'], 
+        local_dir=s3_config['local_dir'], 
+        aws_access_key_id=s3_config['aws_access_key_id'], 
+        aws_secret_access_key=s3_config['aws_secret_access_key'], 
+        aws_region=s3_config['aws_region']):
+    """
+    
+    """
+
+    # Connect to S3
+    s3 = boto3.client(
+        's3',
+        region_name=aws_region,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key
+    )
+
+    for root, dirs, files in os.walk(local_dir):
+        for file in files:
+            local_file_path = os.path.join(root, file)
+            
+            # Construct the S3 file path
+            if folder_prefix:
+                # Add the S3 folder as a prefix to the S3 key (file path)
+                s3_file_path = os.path.join(folder_prefix, os.path.relpath(local_file_path, local_dir)).replace("\\", "/")
+            else:
+                # Just the relative path from the local folder
+                s3_file_path = os.path.relpath(local_file_path, local_dir).replace("\\", "/")
+
+            try:
+                # Upload the file
+                print(f"Uploading {local_file_path} to s3://{bucket_name}/{s3_file_path}...")
+                s3.upload_file(local_file_path, bucket_name, s3_file_path)
+            except FileNotFoundError:
+                print(f"File {local_file_path} not found.")
+            except NoCredentialsError:
+                print("Credentials not available.")
+
+    print("Folder upload completed.")
+
+    
 if __name__ == '__main__':
     download_test_data()
