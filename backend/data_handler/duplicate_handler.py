@@ -21,17 +21,18 @@ def handle_duplicates(df, case="remove", subset=None, keep='first', inplace=Fals
     """
 
     # Check for duplicates
+    print("Checking for duplicates")
     duplicate_exists = df.duplicated(subset=subset, keep=keep).any()
 
     if not duplicate_exists:
         print("No duplicates found in the dataset.")
-        return df if not inplace else None
+        return df
 
     # Handle cases
     if case == "remove":
         print(f"{duplicate_exists.shape[0]} duplicates found")
         print("Removing duplicates...")
-        return df.drop_duplicates(subset=subset, keep='keep', inplace=inplace)
+        return df.drop_duplicates(subset=subset, keep='keep', inplace=True)
 
     elif case == "mark":
         print("Marking duplicates...")
@@ -40,7 +41,7 @@ def handle_duplicates(df, case="remove", subset=None, keep='first', inplace=Fals
 
     elif case == "keep_last":
         print("Keeping the last occurrence of duplicates...")
-        return df.drop_duplicates(subset=subset, keep='last', inplace=inplace)
+        return df.drop_duplicates(subset=subset, keep='last', inplace=True)
 
     else:
         print("Invalid case. Choose from: 'remove', 'mark', 'count', 'keep_last'.")
