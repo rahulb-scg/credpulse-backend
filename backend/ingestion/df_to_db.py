@@ -6,10 +6,10 @@ import pandas as pd
 def db_connection():
     conn = psycopg2.connect(
         host="localhost",
-        dbname="credpulse",
+        dbname="credpulse_test",
         user="rahul",
-        password="00000"
-        )
+        password="00000",
+    )
 
     return conn
 
@@ -19,11 +19,11 @@ def df_to_db(df = 'df', engine='engine', tableName = 'masterTable'):
     conn = db_connection()
 
     # Convert DataFrame to CSV format
+    print('Creating temp file..')
     buffer = StringIO()
     df.to_csv(buffer, index=False, header=False)  # Skip headers if the table is pre-created
     buffer.seek(0)
 
-    print('DF to CSV complete..')
     
     try:
         # Insert data into the table
@@ -36,6 +36,7 @@ def df_to_db(df = 'df', engine='engine', tableName = 'masterTable'):
             conn.commit()
 
         conn.close()
+        print('Importing to database complete..')
 
     
     except SQLAlchemyError as e:
