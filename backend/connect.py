@@ -1,7 +1,7 @@
 import psycopg2
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
-from config import config
+import config
 
 # Database Connection
 
@@ -11,7 +11,7 @@ def connect():
 
     try:
         # read connection parameters
-        params = config()
+        params = config.parser()
 
         # connect to the PostgreSQL server
         print('Connecting to the PostgreSQL database...')
@@ -32,7 +32,7 @@ def connect():
     finally:
         if conn is not None:
             print("Database Connection Established...")
-            return engine, conn
+            return engine, params
         
 
 if __name__ == '__main__':
