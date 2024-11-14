@@ -4,6 +4,8 @@ import json
 # CSV to DataFrame
 def csv_handler(config_file, read_rows=None):
     df = None
+    data_config = {}
+
     try:
         # Open and load the configuration JSON file
         with open(config_file, 'r') as config:
@@ -48,7 +50,7 @@ def csv_handler(config_file, read_rows=None):
             print("DataFrame was not created due to an error.")
         print("Finished CSV import process.")
 
-    return df
+    return df, data_config
 
 
 def csv_handler_test(config_file='./test/test_Data/test_data.json', read_rows=15000):
