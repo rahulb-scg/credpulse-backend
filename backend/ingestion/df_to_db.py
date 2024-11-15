@@ -6,9 +6,9 @@ import pandas as pd
 def db_connection():
     conn = psycopg2.connect(
         host="localhost",
-        dbname="credpulse_test",
-        user="rahul",
-        password="00000",
+        dbname="credpulse",
+        user="credpulse",
+        password="credpulse",
     )
 
     return conn
