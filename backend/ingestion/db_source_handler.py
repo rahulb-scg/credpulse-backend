@@ -42,7 +42,7 @@ def db_handler(connection_params):
         engine = create_engine(engine_string)
         
         # Execute the query and fetch data into a DataFrame
-        query = f'SELECT * FROM {connection_params['table']}'
+        query = f"SELECT * FROM {connection_params['table']}"
         data = pd.read_sql(query, engine)
         return data
 
