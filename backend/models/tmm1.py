@@ -101,7 +101,7 @@ def feature_engg(df):
 
 def Cgl_Curve(distribution, transition_matrix):
     Cgl_Curve = []
-    for i in range(12):
+    for i in range(13):
         state_probability = np.dot(distribution, np.linalg.matrix_power(transition_matrix, i))
         Cgl_Curve.append([f"Period_{i}"] + state_probability.tolist())
 
@@ -129,7 +129,7 @@ def calculator(df):
     CglCurve = Cgl_Curve(distribution , transition_matrix)
     print("Created CGL Curve..")
     
-    ALLL = CglCurve.iloc[-1,-1] - CglCurve.iloc[0,-1]
+    ALLL = CglCurve['Charged Off'][12] - CglCurve['Charged Off'][0]
     
     CECL= ALLL*1.5
     
