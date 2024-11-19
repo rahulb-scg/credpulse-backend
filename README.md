@@ -11,17 +11,19 @@
     ```
     choco install pyenv-win -y
     ```
-2. Install PostgreSQL
+2. Install PostgreSQL and pinning version to mitigate accidental upgrades
     ```
     choco install postgresql17 -y --params '/Password:postgres /Port:5432'
+    choco pin add -n postgresql17
     ```
 3. Install Git and GitHub-CLI
     ```
     choco install git gh -y
     ```
-4. Install Python **3.12.6**
+4. Install Python **3.12.6** and pinning version to mitigate accidental upgrades
     ```
     choco install python --version=3.12.6
+    choco pin add -n python
     ```
 # Setting Up Applications
 ## PostgreSQL
