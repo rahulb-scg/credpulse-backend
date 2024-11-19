@@ -90,11 +90,11 @@ def feature_engg(df):
     df_feature['NEXT_DAYS_PAST_DUE'] = df_feature.groupby('LOAN_ID')['DAYS_PAST_DUE'].shift(-1).ffill()
 
     # Creating a new column with charged-off amount
-    print("Creating 'Charge off Amount' Column...")
+    print("Creating 'Charged off Amount' Column...")
     df_feature['CHARGE_OFF_AMT'] = df_feature.apply(lambda x: x['CURRENT_UPB'] if x['DERIVED_LOAN_STATUS'] == 'Charged Off' else 0, axis=1)
     
     print("Changin value for unpaid balance where charge_off is applicable...")
-    df_feature.loc[df_feature['DERIVED_LOAN_STATUS'] == 'Charge Off', 'CURRENT_UPB'] = 0
+    df_feature.loc[df_feature['DERIVED_LOAN_STATUS'] == 'Charged Off', 'CURRENT_UPB'] = 0
 
     return df_feature
 
@@ -131,7 +131,7 @@ def calculator(df):
     
     ALLL = CglCurve['Charged Off'][12] - CglCurve['Charged Off'][0]
     
-    CECL= ALLL*1.5
+    CECL = ALLL*1.5
     
     return {'Transition_Matrix':transition_matrix , 'Distribution':distribution , 'CGL_Curve' : CglCurve ,'ALLL':ALLL ,'CECL' : CECL}
 
