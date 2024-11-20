@@ -33,7 +33,7 @@ def main():
     data = tmm1.run_model(preprocessed_data)
 
     # Saving output to a json
-    utils.export_dict_to_json(data=data, file_name='tmm1', file_path='test/outputs')
+    utils.export_dict_to_files(data_dict=data, file_name_prefix='visual_tmm1', file_path='test/outputs')
 
 if __name__ == "__main__":
     main()

@@ -24,7 +24,8 @@ def file_type_handler(file_path):
     else:
         return "Invalid option"
 
-def export_dict_to_json(data, file_name='', file_path='./'):
+
+def export_dict_to_files(data_dict, file_path, file_name_prefix='', file_name_suffix=''):
     """
     Exports a dictionary to a JSON file. If the dictionary contains pandas DataFrames or Series,
     they will be converted to a format that can be written to JSON.
