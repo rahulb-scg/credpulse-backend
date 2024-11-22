@@ -121,19 +121,36 @@ def Cgl_Curve(distribution, transition_matrix):
 def visualiser(output_before_visuals):
     output_after_visuals = output_before_visuals
 
-    # Create Plot 
-    plt.figure(figsize=(12,6)) 
-    plt.plot(output_after_visuals['CGL_Curve']['Charged Off'], marker='o') 
-    plt.xlabel('Time Periods') 
-    plt.ylabel('Cumulative Gross Loss (CGL)') 
-    plt.title('Cumulative Gross Loss (CGL)') 
-    plt.grid(True) 
-    
-    # Store the plot 
-    output_after_visuals['visuals'] = {}
-    output_after_visuals['visuals']['visual1'] = plt
-    print(output_after_visuals)
+    def visual1(output_after_visuals = output_before_visuals):
 
+        # Create Plot 
+        plt.figure(figsize=(12,6)) 
+        plt.plot(output_after_visuals['CGL_Curve']['Charged Off'], marker='o') 
+        plt.xlabel('Time Periods') 
+        plt.ylabel('Cumulative Gross Loss (CGL)') 
+        plt.title('Cumulative Gross Loss (CGL)') 
+        plt.grid(True) 
+        
+        visual = plt.gcf()
+        output_after_visuals['CGL'] = visual
+        plt.close()
+
+    def visual2(output_after_visuals = output_before_visuals):
+
+        # Plot the Cumulative Charged Off curve with Period on the x-axis
+        plt.figure(figsize=(20, 6))
+        plt.plot(output_after_visuals['CGL_Curve'].index, output_after_visuals['CGL_Curve']['MONTHLY_DEFAULT_RATE'], marker='o')
+        plt.xlabel('Periods')
+        plt.ylabel('Monthly Default Rate')
+        plt.title('Monthly Default Rate')
+        plt.grid(True)
+        
+        visual = plt.gcf()
+        output_after_visuals['Monthly Default Rate'] = visual
+        plt.close()
+
+    visual1()
+    visual2()
     return output_after_visuals
 
 def calculator(df):
