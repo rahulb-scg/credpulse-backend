@@ -1,5 +1,6 @@
 import connect, config, os
-import utils, data_handler
+from utils import get_absolute_filepath, file_type_handler, export_output
+import data_handler
 from ingestion import df_to_db
 from models import tmm1
 import data_handler.preprocessor
@@ -11,11 +12,11 @@ def main():
     # Asking user to input path to configration file
     print("Enter the path to data configuration file", '(Leave blank for default)',sep='\n', end='\n')
     # configFile = input("File Path: ")
-    configFile = 'test/test_data/test_data.json'    # Defaulting to test file to save time
+    configFile = get_absolute_filepath('test/test_data/test_data.json')    # Defaulting to test file to save time
     # configFile = 'test/test_data/test_db.ini'    # Defaulting to test file to save time
 
     # Check file for type of source, and import it into a dataframe
-    df, data_config = utils.file_type_handler(configFile)
+    df, data_config = file_type_handler(configFile)
     if df is None:
         return "Error"
     
@@ -33,7 +34,7 @@ def main():
     data = tmm1.run_model(preprocessed_data)
 
     # Saving output to a json
-    utils.export_output(data=data, file_name_prefix='tmm1', file_path='test/outputs')
+    export_output(data=data, file_name_prefix='tmm1', file_path=get_absolute_filepath('test/outputs'))
 
 if __name__ == "__main__":
     main()

@@ -4,6 +4,15 @@ from datetime import datetime
 from ingestion import csv_source_handler, db_source_handler
 import matplotlib.pyplot as plt
 
+# Function to resolve file paths correctly
+def get_absolute_filepath(relative_path_to_target, script_path=os.path.dirname(__file__)):
+    script_path = script_path
+    relative_path = relative_path_to_target
+    full_path = os.path.join(script_path, relative_path)
+    
+    return full_path
+
+
 # Function to process the file based on its extension
 def file_type_handler(file_path):
     # Get the file extension (lowercased for consistency)
