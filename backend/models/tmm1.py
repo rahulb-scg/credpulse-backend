@@ -55,7 +55,7 @@ def feature_engg(df):
     # Taking only relevant columns
     df_feature = df_feature[required_cols]
 
-    # Remove rows after DLQ Status is 4 marking as charge-off
+    # Remove rows after DLQ Status is 4 marking as charged-off
     print("Unique DLQ Status in the dataset: ", df_feature['DLQ_STATUS'].unique())
     df_feature = df_feature.groupby('LOAN_ID').apply(filter_df).reset_index(drop=True)
     values_to_remove = [99,12,7]
@@ -90,11 +90,11 @@ def feature_engg(df):
     df_feature['NEXT_DAYS_PAST_DUE'] = df_feature.groupby('LOAN_ID')['DAYS_PAST_DUE'].shift(-1).ffill()
 
     # Creating a new column with charged-off amount
-    print("Creating 'Charge off Amount' Column...")
+    print("Creating 'Charged off Amount' Column...")
     df_feature['CHARGE_OFF_AMT'] = df_feature.apply(lambda x: x['CURRENT_UPB'] if x['DERIVED_LOAN_STATUS'] == 'Charged Off' else 0, axis=1)
     
     print("Changin value for unpaid balance where charge_off is applicable...")
-    df_feature.loc[df_feature['DERIVED_LOAN_STATUS'] == 'Charge Off', 'CURRENT_UPB'] = 0
+    df_feature.loc[df_feature['DERIVED_LOAN_STATUS'] == 'Charged Off', 'CURRENT_UPB'] = 0
 
     return df_feature
 
@@ -116,6 +116,24 @@ def Cgl_Curve(distribution, transition_matrix):
 
     return df1
 
+
+def visualiser(output_before_visuals):
+    output_after_visuals = output_before_visuals
+
+    # Create Plot 
+    plt.figure(figsize=(12,6)) 
+    plt.plot(output_after_visuals['CGL_Curve']['Charged Off'], marker='o') 
+    plt.xlabel('Time Periods') 
+    plt.ylabel('Cumulative Gross Loss (CGL)') 
+    plt.title('Cumulative Gross Loss (CGL)') 
+    plt.grid(True) 
+    
+    # Store the plot 
+    output_after_visuals['visuals'] = {}
+    output_after_visuals['visuals']['visual1'] = plt
+    print(output_after_visuals)
+
+    return output_after_visuals
 
 def calculator(df):
   
