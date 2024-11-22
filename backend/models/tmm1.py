@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
+import matplotlib.pyplot as plt
 
 # Take a specific dataset from the data as required (ToDo: Add to Utils)
 
@@ -149,7 +150,7 @@ def calculator(df):
     
     ALLL = CglCurve['Charged Off'][12] - CglCurve['Charged Off'][0]
     
-    CECL= ALLL*1.5
+    CECL = ALLL*1.5
     
     return {'Transition_Matrix':transition_matrix , 'Distribution':distribution , 'CGL_Curve' : CglCurve ,'ALLL':ALLL ,'CECL' : CECL}
 
@@ -179,9 +180,10 @@ def run_model(df):
         print(f"An unexpected error occurred: {e}")
 
 
-    output = calculator(loan_data)
+    calculator_output = calculator(loan_data)
+    output_with_visuals = visualiser(calculator_output)
 
-    return output
+    return output_with_visuals
 
 if __name__ == '__main__':
     run_model()
