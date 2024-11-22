@@ -50,13 +50,13 @@ def export_dict_to_files(data_dict, file_path, file_name_prefix='', file_name_su
             return value  # If it's not a DataFrame or Series, leave it unchanged
 
         # Apply conversion to each value in the dictionary
-        converted_data = {key: convert_value(value) for key, value in data.items()}
+        converted_data = {key: convert_value(value) for key, value in data_dict.items()}
 
         # Get the current date and time, formatted as YYYYMMDD_HHMMSS
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
         # Create the full path to the output JSON file
-        file_name_with_timestamp = f"{file_name}_{timestamp}.json"
+        file_name_with_timestamp = f"{file_name_prefix}_{timestamp}.json"
         file_full_path = os.path.join(file_path, file_name_with_timestamp)
 
         # Export the converted dictionary to a JSON file
