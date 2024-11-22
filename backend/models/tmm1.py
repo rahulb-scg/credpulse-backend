@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
+import matplotlib.pyplot as plt
 
 # Take a specific dataset from the data as required (ToDo: Add to Utils)
 
@@ -55,7 +56,7 @@ def feature_engg(df):
     # Taking only relevant columns
     df_feature = df_feature[required_cols]
 
-    # Remove rows after DLQ Status is 4 marking as charge-off
+    # Remove rows after DLQ Status is 4 marking as charged-off
     print("Unique DLQ Status in the dataset: ", df_feature['DLQ_STATUS'].unique())
     df_feature = df_feature.groupby('LOAN_ID').apply(filter_df).reset_index(drop=True)
     values_to_remove = [99,12,7]
@@ -90,11 +91,11 @@ def feature_engg(df):
     df_feature['NEXT_DAYS_PAST_DUE'] = df_feature.groupby('LOAN_ID')['DAYS_PAST_DUE'].shift(-1).ffill()
 
     # Creating a new column with charged-off amount
-    print("Creating 'Charge off Amount' Column...")
+    print("Creating 'Charged off Amount' Column...")
     df_feature['CHARGE_OFF_AMT'] = df_feature.apply(lambda x: x['CURRENT_UPB'] if x['DERIVED_LOAN_STATUS'] == 'Charged Off' else 0, axis=1)
     
     print("Changin value for unpaid balance where charge_off is applicable...")
-    df_feature.loc[df_feature['DERIVED_LOAN_STATUS'] == 'Charge Off', 'CURRENT_UPB'] = 0
+    df_feature.loc[df_feature['DERIVED_LOAN_STATUS'] == 'Charged Off', 'CURRENT_UPB'] = 0
 
     return df_feature
 
@@ -117,6 +118,41 @@ def Cgl_Curve(distribution, transition_matrix):
     return df1
 
 
+def visualiser(output_before_visuals):
+    output_after_visuals = output_before_visuals
+
+    def visual1(output_after_visuals = output_before_visuals):
+
+        # Create Plot 
+        plt.figure(figsize=(12,6)) 
+        plt.plot(output_after_visuals['CGL_Curve']['Charged Off'], marker='o') 
+        plt.xlabel('Time Periods') 
+        plt.ylabel('Cumulative Gross Loss (CGL)') 
+        plt.title('Cumulative Gross Loss (CGL)') 
+        plt.grid(True) 
+        
+        visual = plt.gcf()
+        output_after_visuals['CGL'] = visual
+        plt.close()
+
+    def visual2(output_after_visuals = output_before_visuals):
+
+        # Plot the Cumulative Charged Off curve with Period on the x-axis
+        plt.figure(figsize=(20, 6))
+        plt.plot(output_after_visuals['CGL_Curve'].index, output_after_visuals['CGL_Curve']['MONTHLY_DEFAULT_RATE'], marker='o')
+        plt.xlabel('Periods')
+        plt.ylabel('Monthly Default Rate')
+        plt.title('Monthly Default Rate')
+        plt.grid(True)
+        
+        visual = plt.gcf()
+        output_after_visuals['Monthly Default Rate'] = visual
+        plt.close()
+
+    visual1()
+    visual2()
+    return output_after_visuals
+
 def calculator(df):
   
     transition_matrix = pd.pivot_table(df, values='CURRENT_UPB', index='DERIVED_LOAN_STATUS', columns='NEXT_DERIVED_LOAN_STATUS', aggfunc='count', sort=False , fill_value = 0).pipe(lambda x: x.div(x.sum(axis = 1),axis = 0))
@@ -131,7 +167,7 @@ def calculator(df):
     
     ALLL = CglCurve['Charged Off'][12] - CglCurve['Charged Off'][0]
     
-    CECL= ALLL*1.5
+    CECL = ALLL*1.5
     
     return {'Transition_Matrix':transition_matrix , 'Distribution':distribution , 'CGL_Curve' : CglCurve ,'ALLL':ALLL ,'CECL' : CECL}
 
@@ -161,9 +197,10 @@ def run_model(df):
         print(f"An unexpected error occurred: {e}")
 
 
-    output = calculator(loan_data)
+    calculator_output = calculator(loan_data)
+    output_with_visuals = visualiser(calculator_output)
 
-    return output
+    return output_with_visuals
 
 if __name__ == '__main__':
     run_model()
