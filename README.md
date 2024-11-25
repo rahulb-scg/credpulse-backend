@@ -85,6 +85,7 @@ Details at glance:
     ```
 5. Setup project testing files
     ```
+    cd backend
     python backend\prepareTestData.py
     ```
     On execution, this script will download testing data and outputs
