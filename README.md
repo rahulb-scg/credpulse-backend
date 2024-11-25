@@ -86,6 +86,10 @@ Details at glance:
 5. Setup project testing files
     ```
     cd backend
+<<<<<<< HEAD
+=======
+    python backend\prepareTestData.py
+>>>>>>> cd77f6397c00cf40a19534269a42a67d28a112e4
     python prepareTestData.py
     ```
     On execution, this script will download testing data and outputs
