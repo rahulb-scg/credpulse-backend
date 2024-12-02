@@ -31,7 +31,7 @@ def main():
     preprocessed_data = data_handler.preprocessor.preprocess(df, data_config)
 
     # Running Model
-    data = tmm1.run_model(preprocessed_data)
+    data = tmm1.run_model(preprocessed_data, data_config)
 
     # Saving output to a json
     export_output(data=data, file_name_prefix='tmm1', file_path=get_absolute_filepath('test/outputs'))
