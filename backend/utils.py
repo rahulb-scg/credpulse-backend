@@ -1,7 +1,8 @@
-import os, json, config
+import os, json
+from backend import config
 import pandas as pd
 from datetime import datetime
-from ingestion import csv_source_handler, db_source_handler
+from backend.ingestion import csv_source_handler, db_source_handler
 import matplotlib.pyplot as plt
 
 # Function to resolve file paths correctly

@@ -1,7 +1,7 @@
 import psycopg2
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
-import config
+from backend import config
 
 # Database Connection
 

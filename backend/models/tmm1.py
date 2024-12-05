@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from models import tmm1_data
+from backend.models import tmm1_data
 
 # Take a specific dataset from the data as required (ToDo: Add to Utils)
 

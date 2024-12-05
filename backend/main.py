@@ -1,9 +1,10 @@
-import connect, config, os
-from utils import get_absolute_filepath, file_type_handler, export_output
-import data_handler
-from ingestion import df_to_db
-from models import tmm1
-import data_handler.preprocessor
+import os
+from backend import connect, config
+from backend.utils import get_absolute_filepath, file_type_handler, export_output
+from backend import data_handler
+from backend.ingestion import df_to_db
+from backend.models import tmm1
+import backend.data_handler.preprocessor
 
 def main():
     # Greet user
