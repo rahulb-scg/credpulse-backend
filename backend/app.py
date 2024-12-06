@@ -2,16 +2,19 @@ from flask import Flask, jsonify, request, send_from_directory
 import os
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from marshmallow import ValidationError
+from schemas import FileDownloadSchema,FileUploadSchema, handle_validation_error
+
 
 app = Flask(__name__)
-
-@app.route('/', methods=['GET'])
-def show_home():
-    return jsonify({"message": "Hello from the Python backend!"})
 
 UPLOAD_FOLDER = './uploads'
 ALLOWED_EXTENSIONS = {'json', 'csv', 'ini', 'toml', 'yaml', 'xlsx', 'sqlite'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+@app.route('/', methods=['GET'])
+def show_home():
+    return jsonify({"message": "Hello from the Python backend!"})
 
 # Ensure the upload folder exists
 def ensure_folder(foldername=UPLOAD_FOLDER):
@@ -24,6 +27,13 @@ def allowed_file(filename):
 
 @app.route('/upload', methods=['POST'])
 def upload_files():
+
+    # Validate request using Marshmallow
+    try:
+        data = FileUploadSchema().load(request.files)
+    except ValidationError as err:
+        return handle_validation_error(err)
+
     if 'files' not in request.files:
         return jsonify({'error': 'No file part'}), 400
 
@@ -51,6 +61,15 @@ def upload_files():
 
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
+
+    # Validate request using Marshmallow
+    try:
+        schema = FileDownloadSchema()
+        schema.load({"filename": filename})
+
+    except ValidationError as err:
+        return handle_validation_error(err)
+
     """Endpoint to download a specific file."""
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     
@@ -62,11 +81,11 @@ def download_file(filename):
     
     return jsonify({'error': 'File not found'}), 404
 
-@app.rote('/newreport/<form>', methods=['POST'])
+@app.route('/newreport/<form>', methods=['POST'])
 def new_report(new_report_form):
     pass
 
-@app.rote('/viewreport/<report_id>', methods=['GET'])
+@app.route('/viewreport/<report_id>', methods=['GET'])
 def view_report(report_id):
     pass
 
