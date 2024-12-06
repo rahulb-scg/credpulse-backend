@@ -5,8 +5,12 @@ from datetime import datetime
 
 app = Flask(__name__)
 
+@app.route('/', methods=['GET'])
+def show_home():
+    return jsonify({"message": "Hello from the Python backend!"})
+
 UPLOAD_FOLDER = './uploads'
-ALLOWED_EXTENSIONS = {'json', 'csv', 'ini'}
+ALLOWED_EXTENSIONS = {'json', 'csv', 'ini', 'toml', 'yaml', 'xlsx', 'sqlite'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Ensure the upload folder exists
@@ -58,14 +62,14 @@ def download_file(filename):
     
     return jsonify({'error': 'File not found'}), 404
 
+@app.rote('/newreport/<form>', methods=['POST'])
+def new_report(new_report_form):
+    pass
 
-@app.route('/api/data', methods=['GET'])
-def get_data():
-    return jsonify({"message": "Hello from the Python backend!"})
+@app.rote('/viewreport/<report_id>', methods=['GET'])
+def view_report(report_id):
+    pass
 
-@app.route('/', methods=['GET'])
-def show_home():
-    return jsonify({"message": "Hello from the Python backend!"})
 
 if __name__ == '__main__':
     # Ensure the main upload folder exists when the app starts
