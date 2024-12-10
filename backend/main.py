@@ -35,7 +35,10 @@ def main():
     data = tmm1.run_model(preprocessed_data, data_config)
 
     # Saving output to a json
-    export_output(data=data, file_name_prefix='tmm1', file_path=get_absolute_filepath('test/outputs'))
+    output = export_output(data=data, file_name_prefix='tmm1', file_path=get_absolute_filepath('test/outputs'), save_to_mongodb=True)
+
+    # Returning Output
+    return(output)
 
 if __name__ == "__main__":
     main()
