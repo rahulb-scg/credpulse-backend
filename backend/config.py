@@ -1,31 +1,27 @@
 from configparser import ConfigParser
+from dotenv import load_dotenv
+import os
 
-def parser(filename='./database.ini', section='postgresql'):
-    db_config = {}
-    try:
-        # create a parser
-        parser = ConfigParser()
-        
-        # read config file
-        parser.read(filename)
+# Load environment variables
+load_dotenv()
 
-        # get section, default to postgresql
-        if parser.has_section(section):
-            params = parser.items(section)
-            for param in params:
-                db_config[param[0]] = param[1]
-        else:
-            raise Exception(f'Section {section} not found in the {filename} file')
+def get_credpulse_db_config():
+    """Get database configuration from environment variables"""
+    return {
+        'host': os.getenv('DB_HOST', 'localhost'),
+        'port': os.getenv('DB_PORT', '5432'),
+        'database': os.getenv('DB_NAME', 'credpulse'),
+        'user': os.getenv('DB_USER', 'credpulse'),
+        'password': os.getenv('DB_PASSWORD', 'credpulse'),
+        'engine': 'postgresql'
+    }
 
-    except FileNotFoundError as e:
-        print(f"Error: The file {filename} was not found.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-    finally:
-        if not db_config:
-            print(f"No configuration found for section '{section}' in {filename}.")
-        else:
-            print(f"Configuration loaded successfully from section '{section}' in {filename}.")
-        print("Finished reading configuration.")
-
-    return db_config
+def get_mongo_config():
+    """Get MongoDB configuration from environment variables"""
+    return {
+        'host': os.getenv('MONGO_DB_HOST', 'localhost'),
+        'port': os.getenv('MONGO_DB_PORT', '27017'),
+        'database': os.getenv('MONGO_DB_NAME', 'credpulse'),
+        'user': os.getenv('MONGO_DB_USER', 'credpulse'),
+        'password': os.getenv('MONGO_DB_PASSWORD', 'credpulse')
+    }

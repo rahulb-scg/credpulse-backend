@@ -2,13 +2,17 @@ from io import StringIO
 from sqlalchemy.exc import SQLAlchemyError
 import psycopg2
 import pandas as pd
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 def db_connection():
     conn = psycopg2.connect(
-        host="localhost",
-        dbname="credpulse",
-        user="credpulse",
-        password="credpulse",
+        host=os.getenv('DB_HOST', 'localhost'),
+        dbname=os.getenv('DB_NAME', 'credpulse'),
+        user=os.getenv('DB_USER', 'credpulse'),
+        password=os.getenv('DB_PASSWORD', 'credpulse'),
     )
 
     return conn

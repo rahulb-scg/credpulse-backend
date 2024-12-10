@@ -106,9 +106,17 @@ def export_to_mongodb(data: dict, collection_name: str = 'outputs') -> bool:
         from pymongo import MongoClient
         from datetime import datetime
 
-        # Connect to MongoDB
-        client = MongoClient('mongodb://localhost:27017/')
-        db = client['credpulse']  # Using the same database name as our PostgreSQL for consistency
+        # Get MongoDB configuration from environment
+        mongo_config = config.get_mongo_config()
+        
+        # Build connection string from config
+        connection_string = f"mongodb://{mongo_config['host']}:{mongo_config['port']}/"
+        if mongo_config.get('username') and mongo_config.get('password'):
+            connection_string = f"mongodb://{mongo_config['username']}:{mongo_config['password']}@{mongo_config['host']}:{mongo_config['port']}/"
+
+        # Connect to MongoDB using config
+        client = MongoClient(connection_string)
+        db = client[mongo_config['database']]  # Get database name from config
         collection = db[collection_name]
 
         # Add metadata to the document
