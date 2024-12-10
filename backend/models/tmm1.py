@@ -2,6 +2,15 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from backend.models import tmm1_data
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Get path from environment variables with fallback defaults
+OUTPUT_DIR = os.getenv('TMM1_OUTPUT_DIR', 'backend/test/test_data/Model Ready')
+OUTPUT_FILE = os.getenv('TMM1_OUTPUT_FILE', 'TMM1_360_bucket.csv')
 
 # Take a specific dataset from the data as required (ToDo: Add to Utils)
 
@@ -158,29 +167,19 @@ def calculator(df):
 
 
 def run_model(df, data_config):
-   
     print("Preparing data for model...")
-
+    
     loan_data = data_sampler(df)
     loan_data = feature_engg(loan_data, data_config)
 
     print("Exporting Model-Ready Data to CSV..")
-
-    # Attempt to write the DataFrame to a CSV file
+    
+    output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
     try:
-        loan_data.to_csv('test/test_data/Model Ready/TMM1_360_bucket.csv')
-        print("File saved successfully.")
-    except FileNotFoundError as fnf_error:
-        print(f"FileNotFoundError: {fnf_error}")
-    except PermissionError as p_error:
-        print(f"PermissionError: {p_error}")
-    except IsADirectoryError as dir_error:
-        print(f"IsADirectoryError: {dir_error}")
-    except OSError as os_error:
-        print(f"OSError: {os_error}")
+        loan_data.to_csv(output_path)
+        print(f"File saved successfully to {output_path}")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-
+        print(f"An error occurred while saving the file: {e}")
 
     calculator_output = calculator(loan_data)
     output_with_visuals = visualiser(calculator_output)

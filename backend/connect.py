@@ -11,7 +11,7 @@ def connect():
 
     try:
         # read connection parameters
-        params = config.parser()
+        params = config.get_credpulse_db_config()
 
         # connect to the PostgreSQL server
         print('Connecting to the PostgreSQL database...')
@@ -19,7 +19,6 @@ def connect():
 
         engine = create_engine(connection_string)
         
-        # print(f"Connection parameters: {params} (!!!Remove in production!!!)")
         conn = engine.connect()
 
         # display the PostgreSQL database server version

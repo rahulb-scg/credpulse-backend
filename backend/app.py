@@ -4,12 +4,14 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 from marshmallow import ValidationError
 from schemas import FileDownloadSchema,FileUploadSchema, handle_validation_error
+from dotenv import load_dotenv
 
+load_dotenv()
 
 app = Flask(__name__)
 
-UPLOAD_FOLDER = './uploads'
-ALLOWED_EXTENSIONS = {'json', 'csv', 'ini', 'toml', 'yaml', 'xlsx', 'sqlite'}
+UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', './uploads')
+ALLOWED_EXTENSIONS = set(os.getenv('ALLOWED_EXTENSIONS', '').split(','))
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/', methods=['GET'])

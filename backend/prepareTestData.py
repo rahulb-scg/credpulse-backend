@@ -1,14 +1,17 @@
+from dotenv import load_dotenv
 import os
 import boto3
 from botocore.exceptions import NoCredentialsError
 
+load_dotenv()
+
 s3_config = {
-    'bucket_name': 'credpulse-test', 
-    'folder_prefix': '', 
-    'local_dir': './test', 
-    'aws_access_key_id': 'AKIAYPLVC5CQLX3SD37V', 
-    'aws_secret_access_key': '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', 
-    'aws_region': 'us-east-1'
+    'bucket_name': os.getenv('AWS_BUCKET_NAME'),
+    'folder_prefix': '',
+    'local_dir': os.getenv('TEST_FOLDER'),
+    'aws_access_key_id': os.getenv('AWS_ACCESS_KEY_ID'),
+    'aws_secret_access_key': os.getenv('AWS_SECRET_ACCESS_KEY'),
+    'aws_region': os.getenv('AWS_REGION', 'us-east-1')
 }
 
 def download_test_data(
