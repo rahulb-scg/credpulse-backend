@@ -1,9 +1,10 @@
-import connect, config, os
-from utils import get_absolute_filepath, file_type_handler, export_output
-import data_handler
-from ingestion import df_to_db
-from models import tmm1
-import data_handler.preprocessor
+import os
+from backend import connect, config
+from backend.utils import get_absolute_filepath, file_type_handler, export_output
+from backend import data_handler
+from backend.ingestion import df_to_db
+from backend.models import tmm1
+import backend.data_handler.preprocessor
 
 def main():
     # Greet user
@@ -31,10 +32,13 @@ def main():
     preprocessed_data = data_handler.preprocessor.preprocess(df, data_config)
 
     # Running Model
-    data = tmm1.run_model(preprocessed_data)
+    data = tmm1.run_model(preprocessed_data, data_config)
 
     # Saving output to a json
-    export_output(data=data, file_name_prefix='tmm1', file_path=get_absolute_filepath('test/outputs'))
+    output = export_output(data=data, file_name_prefix='tmm1', file_path=get_absolute_filepath('test/outputs'), save_to_mongodb=True)
+
+    # Returning Output
+    return(output)
 
 if __name__ == "__main__":
     main()

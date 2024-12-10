@@ -1,7 +1,8 @@
-import os, json, config
+import os, json
+from backend import config
 import pandas as pd
 from datetime import datetime
-from ingestion import csv_source_handler, db_source_handler
+from backend.ingestion import csv_source_handler, db_source_handler
 import matplotlib.pyplot as plt
 
 # Function to resolve file paths correctly
@@ -30,18 +31,20 @@ def file_type_handler(file_path):
     else:
         return "Invalid option"
 
-def export_output(data: dict, file_name_prefix='', file_name_suffix='', file_path='./'):
+def export_output(data: dict, file_name_prefix='', file_name_suffix='', file_path='./', save_to_mongodb=True):
     """
     Exports a dictionary containing Pandas Series, DataFrames, and plots/images to JSON and image files.
+    Optionally saves to MongoDB.
 
     Parameters:
         data_dict (dict): The input dictionary containing Series, DataFrames, and plots.
         file_name_prefix (str): Optional prefix for filenames.
         file_name_suffix (str): Optional suffix for filenames.
         file_path (str): The path where the output folder will be created.
+        save_to_mongodb (bool): Whether to also save the data to MongoDB.
 
     Returns:
-        None
+        dict: The exported data
     """
 
     # Create a timestamped folder for the export
@@ -84,6 +87,51 @@ def export_output(data: dict, file_name_prefix='', file_name_suffix='', file_pat
             json.dump(json_export_data, json_file, indent=4)
         
         print(f"Export completed successfully! Files are saved in: {export_folder}")
+
+        # Save to MongoDB if requested
+        if save_to_mongodb:
+            export_to_mongodb(json_export_data)
+
+        return json_export_data
     
     except Exception as e:
         print(f"An error occurred during export: {e}")
+        return None
+
+def export_to_mongodb(data: dict, collection_name: str = 'outputs') -> bool:
+    """
+    Exports data to a MongoDB collection.
+
+    Parameters:
+        data (dict): The data to be stored in MongoDB
+        collection_name (str): Name of the collection to store the data (default: 'outputs')
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        from pymongo import MongoClient
+        from datetime import datetime
+
+        # Connect to MongoDB
+        client = MongoClient('mongodb://localhost:27017/')
+        db = client['credpulse']  # Using the same database name as our PostgreSQL for consistency
+        collection = db[collection_name]
+
+        # Add metadata to the document
+        document = {
+            'timestamp': datetime.now(),
+            'data': data
+        }
+
+        # Insert the document
+        result = collection.insert_one(document)
+        
+        print(f"Document inserted successfully with ID: {result.inserted_id}")
+        client.close()
+        return True
+
+    except Exception as e:
+        print(f"An error occurred while exporting to MongoDB: {e}")
+        return False
+

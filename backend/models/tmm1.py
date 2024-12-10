@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
-import os
 import matplotlib.pyplot as plt
+from backend.models import tmm1_data
 
 # Take a specific dataset from the data as required (ToDo: Add to Utils)
 
@@ -34,33 +34,18 @@ def data_sampler(df):
 
     return sampled_df
 
-
-def filter_df(loan_id):
-    loan_id.reset_index(drop=True, inplace=True)
-    start_idx = loan_id.loc[loan_id['DLQ_STATUS'] == 4].index
-    
-    if not start_idx.empty:
-        start_idx = start_idx[0] + 1  # Get the first index where DLQ_STATUS is 4
-        end_idx = loan_id.index[-1]
-        loan_id.drop(index=range(start_idx, end_idx + 1), inplace=True)
-    return loan_id
-
-
 #   Feature Engneering
 #   The function gets the loan data it takes down the required columns ans then we return the Feature Engineered loan_data
-def feature_engg(df):
+def feature_engg(df, data_config):
     df_feature = df.copy()
 
-    required_cols = ['LOAN_ID' , 'ACT_PERIOD' , 'ORIG_UPB' , 'CURRENT_UPB' , 'DLQ_STATUS']
-    print("Filtering columns as required by the model...", "\n", required_cols)
-    # Taking only relevant columns
-    df_feature = df_feature[required_cols]
+    print(df_feature.shape, "\n")
+    df_feature = tmm1_data.prepare(df_feature, data_config)
+    print(df_feature.shape, "\n")
 
-    # Remove rows after DLQ Status is 4 marking as charged-off
+    # Remove rows after DLQ Status is x marking as charged-off
     print("Unique DLQ Status in the dataset: ", df_feature['DLQ_STATUS'].unique())
-    df_feature = df_feature.groupby('LOAN_ID').apply(filter_df).reset_index(drop=True)
-    values_to_remove = [99,12,7]
-    df_feature = df_feature.groupby('DLQ_STATUS').filter(lambda x: not any(x['DLQ_STATUS'].isin(values_to_remove)))
+    # df_feature = df_feature.groupby('LOAN_ID').apply(filter_df).reset_index(drop=True)
 
     print("Unique DLQ Status in the dataset after filtering", df_feature['DLQ_STATUS'].unique())
     print("Current shape of data: ", df_feature.shape)
@@ -172,12 +157,12 @@ def calculator(df):
     return {'Transition_Matrix':transition_matrix , 'Distribution':distribution , 'CGL_Curve' : CglCurve ,'ALLL':ALLL ,'CECL' : CECL}
 
 
-def run_model(df):
+def run_model(df, data_config):
    
     print("Preparing data for model...")
 
     loan_data = data_sampler(df)
-    loan_data = feature_engg(df)
+    loan_data = feature_engg(loan_data, data_config)
 
     print("Exporting Model-Ready Data to CSV..")
 

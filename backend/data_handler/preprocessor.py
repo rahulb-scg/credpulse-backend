@@ -1,5 +1,4 @@
-from data_handler import duplicate_handler
-from data_handler import column_dtypes
+from backend.data_handler import duplicate_handler, column_dtypes
 
 def replace_values(df, data_config):
     """
