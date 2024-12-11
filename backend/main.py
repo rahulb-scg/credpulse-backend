@@ -1,20 +1,25 @@
 import os
 from backend import connect, config
-from backend.utils import get_absolute_filepath, file_type_handler, export_output
+from backend.utils import get_absolute_filepath, file_type_handler, export_output, get_test_report_config
 from backend import data_handler
+from backend.data_handler import preprocessor
 from backend.ingestion import df_to_db
 from backend.models import tmm1
-import backend.data_handler.preprocessor
+from backend.db.mongo import save_report
+from datetime import datetime
 
-def main():
+def main(configFilePath = None):
+    # Get test configuration
+    test_config = get_test_report_config()
+    
+    # Use provided config file path or default from test config
+    if configFilePath is None:
+        configFilePath = test_config['config_file_csv']
+
     # Greet user
     print("Welcome to CredPulse!\n")
     
-    # Asking user to input path to configration file
-    print("Enter the path to data configuration file", '(Leave blank for default)',sep='\n', end='\n')
-    # configFile = input("File Path: ")
-    configFile = get_absolute_filepath('test/test_data/test_data.json')    # Defaulting to test file to save time
-    # configFile = 'test/test_data/test_db.ini'    # Defaulting to test file to save time
+    configFile = get_absolute_filepath(configFilePath)
 
     # Check file for type of source, and import it into a dataframe
     df, data_config = file_type_handler(configFile)
@@ -26,19 +31,44 @@ def main():
 
     # Saving the df to db
     print('Saving to database')
-    df_to_db.df_to_db(df, engine, tableName='test_table')
+    # df_to_db.df_to_db(df, engine, tableName='test_table')
 
     # Data Preprocessing
-    preprocessed_data = data_handler.preprocessor.preprocess(df, data_config)
+    preprocessed_data = preprocessor.preprocess(df, data_config)
 
     # Running Model
     data = tmm1.run_model(preprocessed_data, data_config)
 
-    # Saving output to a json
-    output = export_output(data=data, file_name_prefix='tmm1', file_path=get_absolute_filepath('test/outputs'), save_to_mongodb=True)
+    # Create timestamp for this run
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
 
-    # Returning Output
-    return(output)
+    # Save local files if needed
+    output = export_output(
+        data=data, 
+        file_name_prefix=test_config['report_name'], 
+        file_path=get_absolute_filepath('test/outputs')
+    )
+
+    # Prepare report data for MongoDB using test configuration
+    report_data = {
+        "report_name": f"{test_config['report_name']}_{timestamp}",
+        "description": test_config['description'],
+        "result": output,
+        "config_file": configFile,
+        "created_at": datetime.now(),
+        "model": test_config['model']
+    }
+
+    # Save to MongoDB
+    report_id = save_report(report_data)
+    print(f"Report saved to MongoDB with ID: {report_id}")
+
+    # Return both the MongoDB ID and the output data
+    return {
+        "report_id": report_id,
+        "data": output
+    }
 
 if __name__ == "__main__":
     main()

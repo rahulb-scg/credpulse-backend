@@ -15,10 +15,15 @@ class FileDownloadSchema(Schema):
         "validator_failed": "Filename must not be empty."
     })
     
-# Example schema for any JSON payload
-class DataSchema(Schema):
-    key = fields.String(required=True)
-    value = fields.Integer(required=True)
+class NewReportSchema(Schema):
+    report_name = fields.String(required=True, validate=lambda x: len(x) > 0, error_messages={
+        "required": "Report name is required.",
+        "validator_failed": "Report name must not be empty."
+    })
+    description = fields.String(required=False)
+    data_file = fields.Raw(required=True, error_messages={"required": "Data file is required."})
+    config_file = fields.Raw(required=True, error_messages={"required": "Config file is required."})
+
 
 # Example validation error handler
 def handle_validation_error(error):

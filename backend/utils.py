@@ -4,6 +4,10 @@ import pandas as pd
 from datetime import datetime
 from backend.ingestion import csv_source_handler, db_source_handler
 import matplotlib.pyplot as plt
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Function to resolve file paths correctly
 def get_absolute_filepath(relative_path_to_target, script_path=os.path.dirname(__file__)):
@@ -13,6 +17,16 @@ def get_absolute_filepath(relative_path_to_target, script_path=os.path.dirname(_
     
     return full_path
 
+# Function to get test report configuration
+def get_test_report_config():
+    """Get test report configuration from environment variables"""
+    return {
+        'report_name': os.getenv('TEST_REPORT_NAME', 'TMM1_REPORT_'),
+        'description': os.getenv('TEST_REPORT_DESCRIPTION', 'TMM1_REPORT_DESCRIPTION'),
+        'model': os.getenv('TEST_REPORT_MODEL', 'TMM1'),
+        'config_file_csv': os.getenv('TEST_CONFIG_FILE_CSV', 'test/test_data/test_data.json'),
+        'config_file_db': os.getenv('TEST_CONFIG_FILE_DB', 'test/test_data/test_data.ini')
+    }
 
 # Function to process the file based on its extension
 def file_type_handler(file_path):
@@ -80,10 +94,6 @@ def export_output(data: dict, file_name_prefix='', file_name_suffix='', file_pat
             json.dump(json_export_data, json_file, indent=4, default=str)
         
         print(f"Export completed successfully! Files are saved in: {export_folder}")
-
-        # Save to MongoDB if requested
-        if save_to_mongodb:
-            export_to_mongodb(json_export_data)
 
         return json_export_data
     

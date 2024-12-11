@@ -3,8 +3,10 @@ import os
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from marshmallow import ValidationError
-from schemas import FileDownloadSchema,FileUploadSchema, handle_validation_error
+from schemas import FileDownloadSchema, FileUploadSchema, NewReportSchema, handle_validation_error
 from dotenv import load_dotenv
+import main
+from backend.db.mongo import save_report
 
 load_dotenv()
 
@@ -83,14 +85,68 @@ def download_file(filename):
     
     return jsonify({'error': 'File not found'}), 404
 
-@app.route('/newreport/<form>', methods=['POST'])
-def new_report(new_report_form):
-    pass
+@app.route('/newreport', methods=['POST'])
+def new_report():
+    """Endpoint to create a new report with data and config file uploads."""
+    try:
+        # Validate request form data
+        schema = NewReportSchema()
+        form_data = request.form.to_dict()
+        form_data['data_file'] = request.files.get('data_file')
+        form_data['config_file'] = request.files.get('config_file')
+        schema.load(form_data)
+    except ValidationError as err:
+        return handle_validation_error(err)
+    
+    # Extract form data
+    report_name = form_data['report_name']
+    description = form_data.get('description', '')
+
+    # Create report folder and save files
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    report_folder = os.path.join(app.config['UPLOAD_FOLDER'], f"{report_name}_{timestamp}")
+    ensure_folder(report_folder)
+
+    # Save files
+    data_file = request.files.get('data_file')
+    config_file = request.files.get('config_file')
+    
+    data_file_path = os.path.join(report_folder, secure_filename(data_file.filename))
+    config_file_path = os.path.join(report_folder, secure_filename(config_file.filename))
+
+    data_file.save(data_file_path)
+    config_file.save(config_file_path)
+
+    # Run analysis
+    result = main.main(config_file_path)
+
+    # Prepare report data for MongoDB
+    report_data = {
+        "report_name": report_name,
+        "description": description,
+        "result": result,
+        "data_file": data_file.filename,
+        "config_file": config_file.filename,
+        "report_folder": report_folder,
+        "files": {
+            "data_file_path": data_file_path,
+            "config_file_path": config_file_path
+        }
+    }
+
+    # Save to MongoDB
+    report_id = save_report(report_data)
+
+    # Return response with MongoDB ID
+    return jsonify({
+        "message": "Report created successfully",
+        "report_id": report_id
+    }), 201
+
 
 @app.route('/viewreport/<report_id>', methods=['GET'])
 def view_report(report_id):
     pass
-
 
 if __name__ == '__main__':
     # Ensure the main upload folder exists when the app starts
