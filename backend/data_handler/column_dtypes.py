@@ -1,3 +1,4 @@
+# Third-party imports
 import pandas as pd
 
 def convert_columns_dtype(df, dtype_map):
@@ -32,7 +33,7 @@ def convert_columns_dtype(df, dtype_map):
     # Combined function to check and convert columns based on multiple keywords
     def convert_date_columns(df):
         # Define keywords to search for in column names
-        date_columns = ['ORIG_DATE', 'ACT_PERIOD', 'FIRST_PAY', 'MATR_DT', 'ZB_DTE']
+        date_columns = ['ORIG_DATE', 'ACT_PERIOD']
         # Check unique values in each date column before conversion
         for col in date_columns:
             unique_values = df[col].unique()

@@ -1,6 +1,9 @@
+# Third-party imports
 import psycopg2
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
+
+# Local imports
 from backend import config
 
 # Database Connection

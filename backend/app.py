@@ -1,16 +1,23 @@
-from flask import Flask, jsonify, request, send_from_directory
+# Standard library imports
 import os
-from werkzeug.utils import secure_filename
 from datetime import datetime
-from marshmallow import ValidationError
-from schemas import FileDownloadSchema, FileUploadSchema, NewReportSchema, handle_validation_error
+
+# Third-party imports
 from dotenv import load_dotenv
-import main
-from backend.db.mongo import save_report
+from flask import Flask, jsonify, request, send_from_directory
+from flask_cors import CORS
+from marshmallow import ValidationError
+from werkzeug.utils import secure_filename
+
+# Local imports
+from backend.schemas import FileDownloadSchema, FileUploadSchema, NewReportSchema, handle_validation_error
+from backend.db.mongo import save_report, get_report
+import backend.main as main
 
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
 UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', './uploads')
 ALLOWED_EXTENSIONS = set(os.getenv('ALLOWED_EXTENSIONS', '').split(','))
@@ -118,20 +125,33 @@ def new_report():
     config_file.save(config_file_path)
 
     # Run analysis
-    result = main.main(config_file_path)
+    result = main.main(config_file_path, data_file_path)
 
     # Prepare report data for MongoDB
     report_data = {
-        "report_name": report_name,
-        "description": description,
-        "result": result,
-        "data_file": data_file.filename,
-        "config_file": config_file.filename,
-        "report_folder": report_folder,
-        "files": {
-            "data_file_path": data_file_path,
-            "config_file_path": config_file_path
-        }
+        "id": timestamp,
+        "type": "tmas",
+        "columns": {
+            "loanid": {
+                "column_name": "loanid",
+                "header": "Loan Identifier"
+            }
+        },
+        "created_at": datetime.now().isoformat(),
+        "date": {
+            "start_date": "",
+            "end_date": ""
+        },
+        "file": {
+            "name": data_file.filename,
+            "size": os.path.getsize(data_file_path),
+            "type": data_file.content_type,
+            "url": data_file_path
+        },
+        "processed_at": datetime.now().isoformat(),
+        "processed_url": "",
+        "rejected_at": "",
+        "user_id": ""
     }
 
     # Save to MongoDB
@@ -146,7 +166,24 @@ def new_report():
 
 @app.route('/viewreport/<report_id>', methods=['GET'])
 def view_report(report_id):
-    pass
+    """Endpoint to view a specific report by its ID."""
+    try:
+        report = get_report(report_id)
+        
+        if report:
+            return jsonify({
+                "message": "Report found",
+                "report": report
+            }), 200
+        else:
+            return jsonify({
+                "error": "Report not found"
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            "error": f"Error retrieving report: {str(e)}"
+        }), 500
 
 if __name__ == '__main__':
     # Ensure the main upload folder exists when the app starts

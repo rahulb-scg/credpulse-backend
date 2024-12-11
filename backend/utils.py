@@ -1,10 +1,17 @@
-import os, json
-from backend import config
-import pandas as pd
+# Standard library imports
+import os
+import json
 from datetime import datetime
-from backend.ingestion import csv_source_handler, db_source_handler
-import matplotlib.pyplot as plt
+
+# Third-party imports
 from dotenv import load_dotenv
+import pandas as pd
+import matplotlib.pyplot as plt
+from pymongo import MongoClient
+
+# Local imports
+from backend import config
+from backend.ingestion import csv_source_handler, db_source_handler
 
 # Load environment variables
 load_dotenv()
@@ -29,13 +36,13 @@ def get_test_report_config():
     }
 
 # Function to process the file based on its extension
-def file_type_handler(file_path):
+def file_type_handler(file_path, dataFilePath):
     # Get the file extension (lowercased for consistency)
     file_extension = os.path.splitext(file_path)[1].lower()
     print('File Extension is:', file_extension)
 
     if file_extension == '.json':
-        return csv_source_handler.csv_handler(file_path)
+        return csv_source_handler.csv_handler(file_path, dataFilePath)
     elif file_extension == '.ini':
         print('Parsing Database Configuration file..')
         source_db_config = config.parser(file_path)
@@ -72,8 +79,22 @@ def export_output(data: dict, file_name_prefix='', file_name_suffix='', file_pat
 
         for key, value in data.items():
             if isinstance(value, (pd.Series, pd.DataFrame)):
-                # Convert Series/DataFrame to a dictionary format instead of JSON string
-                json_export_data[key] = value.to_dict()
+                # First convert to dictionary
+                temp_dict = value.to_dict()
+                
+                # If it's a DataFrame, we need to handle nested dictionaries
+                if isinstance(value, pd.DataFrame):
+                    for col in temp_dict:
+                        for idx in temp_dict[col]:
+                            if pd.isna(temp_dict[col][idx]):
+                                temp_dict[col][idx] = 0
+                # If it's a Series, handle single level dictionary
+                else:
+                    for idx in temp_dict:
+                        if pd.isna(temp_dict[idx]):
+                            temp_dict[idx] = 0
+                
+                json_export_data[key] = temp_dict
 
             elif isinstance(value, plt.Figure):
                 # Save the plot as an image
@@ -113,9 +134,6 @@ def export_to_mongodb(data: dict, collection_name: str = 'outputs') -> bool:
         bool: True if successful, False otherwise
     """
     try:
-        from pymongo import MongoClient
-        from datetime import datetime
-
         # Get MongoDB configuration from environment
         mongo_config = config.get_mongo_config()
         

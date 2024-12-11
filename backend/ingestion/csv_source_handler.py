@@ -1,8 +1,11 @@
-import pandas as pd
+# Standard library imports
 import json
 
+# Third-party imports
+import pandas as pd
+
 # CSV to DataFrame
-def csv_handler(config_file, read_rows=None):
+def csv_handler(config_file, dataFilePath, read_rows=None):
     df = None
     data_config = {}
 
@@ -20,7 +23,7 @@ def csv_handler(config_file, read_rows=None):
         
         # If column names are provided, assume the CSV has no header
         if column_names != "None":
-            df = pd.read_csv(filepath_or_buffer=data_config['configuration']['path'], 
+            df = pd.read_csv(filepath_or_buffer=dataFilePath, 
                              delimiter=data_config['configuration']['attributes']['delimiter'],
                              names=column_names,
                              header=None,
@@ -28,7 +31,7 @@ def csv_handler(config_file, read_rows=None):
                              nrows=read_rows)
         else:
             # If no column names are provided, infer them from the CSV file
-            df = pd.read_csv(filepath_or_buffer=data_config['configuration']['path'],
+            df = pd.read_csv(filepath_or_buffer=dataFilePath,
                              delimiter=data_config['configuration']['attributes']['delimiter'],
                              skipinitialspace=True,
                              nrows=read_rows)
@@ -36,7 +39,7 @@ def csv_handler(config_file, read_rows=None):
         print(f"Dataset imported successfully. Imported {read_rows if read_rows else 'all'} rows")
 
     except FileNotFoundError as e:
-        print(f"Error: The file {config_file} was not found.")
+        print(f"Error: The file {dataFilePath} was not found.")
     except pd.errors.ParserError as e:
         print(f"Error parsing CSV file: {e}")
     except json.JSONDecodeError as e:

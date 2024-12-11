@@ -1,9 +1,14 @@
+# Standard library imports
+import os
+
+# Third-party imports
+from dotenv import load_dotenv
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+
+# Local imports
 from backend.models import tmm1_data
-import os
-from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
