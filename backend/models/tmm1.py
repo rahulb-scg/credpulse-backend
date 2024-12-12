@@ -1,9 +1,14 @@
+# Standard library imports
+import os
+
+# Third-party imports
+from dotenv import load_dotenv
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+
+# Local imports
 from backend.models import tmm1_data
-import os
-from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -170,21 +175,23 @@ def run_model(df, data_config):
     print("Preparing data for model...")
     
     loan_data = data_sampler(df)
+    # print("Exporting Model-Ready Data to CSV..")
+    # loan_data.to_csv('test/test_data/Model Ready/TMM1_360_bucket_3.csv')
     loan_data = feature_engg(loan_data, data_config)
 
-    print("Exporting Model-Ready Data to CSV..")
+    # print("Exporting Model-Ready Data to CSV..")
     
-    output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
-    try:
-        loan_data.to_csv(output_path)
-        print(f"File saved successfully to {output_path}")
-    except Exception as e:
-        print(f"An error occurred while saving the file: {e}")
+    # output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
+    # try:
+    #     loan_data.to_csv(output_path)
+    #     print(f"File saved successfully to {output_path}")
+    # except Exception as e:
+    #     print(f"An error occurred while saving the file: {e}")
 
     calculator_output = calculator(loan_data)
-    output_with_visuals = visualiser(calculator_output)
+    # output_with_visuals = visualiser(calculator_output)
 
-    return output_with_visuals
+    return calculator_output
 
 if __name__ == '__main__':
     run_model()

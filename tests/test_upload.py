@@ -1,6 +1,11 @@
+# Standard library imports
 import os
-import pytest
 from io import BytesIO
+
+# Third-party imports
+import pytest
+
+# Local imports
 from backend.app import app
 
 @pytest.fixture

@@ -21,7 +21,9 @@ def get_mongo_config():
     return {
         'host': os.getenv('MONGO_DB_HOST', 'localhost'),
         'port': os.getenv('MONGO_DB_PORT', '27017'),
-        'database': os.getenv('MONGO_DB_NAME', 'credpulse'),
         'user': os.getenv('MONGO_DB_USER', 'credpulse'),
-        'password': os.getenv('MONGO_DB_PASSWORD', 'credpulse')
+        'password': os.getenv('MONGO_DB_PASSWORD', 'credpulse'),
+        'database': os.getenv('MONGO_DB_NAME', 'credpulse'),
+        'collection': os.getenv('MONGO_DB_COLLECTION', 'reports'),
+        'auth_source': os.getenv('MONGO_DB_AUTH_SOURCE', 'admin')
     }

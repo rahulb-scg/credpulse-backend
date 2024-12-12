@@ -1,5 +1,7 @@
-import pandas as pd 
-import pyodbc, oracledb
+# Third-party imports
+import oracledb
+import pandas as pd
+import pyodbc
 from sqlalchemy import create_engine
 
 def db_handler(connection_params):
