@@ -11,7 +11,7 @@ from werkzeug.utils import secure_filename
 
 # Local imports
 from backend.schemas import FileDownloadSchema, FileUploadSchema, NewReportSchema, handle_validation_error
-from backend.db.mongo import save_report, get_report
+from backend.db.mongo import save_report, get_report, list_reports
 import backend.main as main
 
 load_dotenv()
@@ -109,6 +109,8 @@ def new_report():
     report_name = form_data['report_name']
     description = form_data.get('description', '')
 
+    request_received_at = datetime.now().isoformat()
+
     # Create report folder and save files
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     report_folder = os.path.join(app.config['UPLOAD_FOLDER'], f"{report_name}_{timestamp}")
@@ -129,29 +131,39 @@ def new_report():
 
     # Prepare report data for MongoDB
     report_data = {
-        "id": timestamp,
+        "report_name": report_name,
+        "report_description": description,  
         "type": "tmas",
+        "created_at": request_received_at,
+        "status": "completed",
         "columns": {
             "loanid": {
                 "column_name": "loanid",
                 "header": "Loan Identifier"
             }
         },
-        "created_at": datetime.now().isoformat(),
         "date": {
             "start_date": "",
             "end_date": ""
         },
-        "file": {
-            "name": data_file.filename,
-            "size": os.path.getsize(data_file_path),
-            "type": data_file.content_type,
-            "url": data_file_path
+        "files": {
+            # Data file
+            "data_name": data_file.filename,
+            "data_size": os.path.getsize(data_file_path),
+            "data_type": data_file.content_type,
+            "data_url": data_file_path,
+
+            # Config file
+            "config_name": config_file.filename,
+            "config_size": os.path.getsize(config_file_path),
+            "config_type": config_file.content_type,
+            "config_url": config_file_path
         },
         "processed_at": datetime.now().isoformat(),
         "processed_url": "",
         "rejected_at": "",
-        "user_id": ""
+        "user_id": "",
+        "result": result
     }
 
     # Save to MongoDB
@@ -183,6 +195,51 @@ def view_report(report_id):
     except Exception as e:
         return jsonify({
             "error": f"Error retrieving report: {str(e)}"
+        }), 500
+
+@app.route('/listreports', methods=['GET'])
+def list_reports_route():
+    """Endpoint to list reports with pagination."""
+    try:
+        # Get pagination parameters from query string
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 20))
+        
+        # Validate pagination parameters
+        if page < 1:
+            return jsonify({"error": "Page number must be greater than 0"}), 400
+        if page_size < 1 or page_size > 100:
+            return jsonify({"error": "Page size must be between 1 and 100"}), 400
+        
+        result = list_reports(page=page, page_size=page_size)
+        
+        if result['reports']:
+            # Format the response
+            formatted_reports = [{
+                'id': report['_id'],
+                'title': report.get('report_name', 'Untitled Report'),
+                'created_date': report.get('processed_at', 'Unknown'),
+                'status': report.get('status', 'Unknown'),
+                'model': report.get('type', 'Unknown')
+            } for report in result['reports']]
+            
+            return jsonify({
+                "message": "Reports retrieved successfully",
+                "reports": formatted_reports,
+                "pagination": result['pagination']
+            }), 200
+        else:
+            return jsonify({
+                "message": "No reports found",
+                "reports": [],
+                "pagination": result['pagination']
+            }), 200
+            
+    except ValueError:
+        return jsonify({"error": "Invalid pagination parameters"}), 400
+    except Exception as e:
+        return jsonify({
+            "error": f"Error retrieving reports: {str(e)}"
         }), 500
 
 if __name__ == '__main__':

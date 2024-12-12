@@ -105,3 +105,69 @@ def get_report(report_id):
             client.close()
             logger.info("MongoDB connection closed")
 
+
+def list_reports(page=1, page_size=20):
+    """Retrieve paginated reports from MongoDB"""
+    client = None
+    try:
+        # Get MongoDB configuration
+        mongo_config = config.get_mongo_config()
+        
+        # Get client
+        client = get_mongo_client()
+        
+        # Get database and collection
+        db = client[mongo_config['database']]
+        collection = db[mongo_config['collection']]
+        
+        # Calculate skip value for pagination
+        skip = (page - 1) * page_size
+        
+        # Get total count of documents
+        total_reports = collection.count_documents({})
+        
+        # Find the reports with pagination
+        reports = list(collection.find(
+            {},
+            {
+                'report_name': 1,
+                'processed_at': -1,
+                'type': 1,
+                'status': 1,
+                '_id': 1
+            }
+        ).sort('processed_at', -1).skip(skip).limit(page_size))
+        
+        # Convert ObjectId to string for JSON serialization
+        for report in reports:
+            report['_id'] = str(report['_id'])
+            if isinstance(report.get('processed_at'), datetime.datetime):
+                report['processed_at'] = report['processed_at'].isoformat()
+        
+        # Calculate pagination metadata
+        total_pages = (total_reports + page_size - 1) // page_size
+        has_next = page < total_pages
+        has_prev = page > 1
+        
+        logger.info(f"Retrieved {len(reports)} reports for page {page}")
+        return {
+            'reports': reports,
+            'pagination': {
+                'total_reports': total_reports,
+                'total_pages': total_pages,
+                'current_page': page,
+                'page_size': page_size,
+                'has_next': has_next,
+                'has_prev': has_prev
+            }
+        }
+            
+    except Exception as e:
+        logger.error(f"Failed to retrieve reports from MongoDB: {str(e)}")
+        raise
+        
+    finally:
+        if client:
+            client.close()
+            logger.info("MongoDB connection closed")
+

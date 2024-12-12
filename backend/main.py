@@ -38,10 +38,6 @@ def main(configFilePath = None, dataFilePath = None):
     # Running Model
     data = tmm1.run_model(preprocessed_data, data_config)
 
-    # Create timestamp for this run
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    
-
     # Save local files if needed
     output = export_output(
         data=data, 
@@ -49,38 +45,8 @@ def main(configFilePath = None, dataFilePath = None):
         file_path=get_absolute_filepath('test/outputs')
     )
 
-    # Prepare report data for MongoDB using test configuration
-    report_data = {
-        "id": str(timestamp),
-        "type": "tmas",
-        "created_at": datetime.now().isoformat(),
-        "date": {
-            "start_date": "",
-            "end_date": ""
-        },
-        "result": {
-            "report_id": str(timestamp),
-            "data": output
-        },
-        "file": {
-            "name": os.path.basename(configFile),
-            "size": os.path.getsize(configFile),
-            "type": "application/json",
-            "url": configFile
-        },
-        "processed_at": datetime.now().isoformat(),
-        "processed_url": "",
-        "rejected_at": "",
-        "user_id": ""
-    }
-
-    # Save to MongoDB
-    report_id = save_report(report_data)
-    print(f"Report saved to MongoDB with ID: {report_id}")
-
     # Return both the MongoDB ID and the output data
     return {
-        "report_id": report_id,
         "data": output
     }
 
