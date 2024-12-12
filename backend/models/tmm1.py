@@ -110,9 +110,9 @@ def feature_engg(df, data_config):
     return df_feature
 
 
-def Cgl_Curve(distribution, transition_matrix):
+def Cgl_Curve(distribution, transition_matrix, prediction_months):
     Cgl_Curve = []
-    for i in range(13):
+    for i in range(prediction_months):
         state_probability = np.dot(distribution, np.linalg.matrix_power(transition_matrix, i))
         Cgl_Curve.append([f"Period_{i}"] + state_probability.tolist())
 
@@ -186,7 +186,7 @@ def calculator(df, data_config):
                      .loc[bucket_values])
     print("Created Distribution..")
     
-    CglCurve = Cgl_Curve(distribution , transition_matrix)
+    CglCurve = Cgl_Curve(distribution, transition_matrix)
     print("Created CGL Curve..")
     
     ALLL = CglCurve['Charged Off'][12] - CglCurve['Charged Off'][0]
