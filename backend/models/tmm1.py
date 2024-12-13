@@ -196,8 +196,13 @@ def calculator(df, data_config):
     # Calculate CECL Factor
     CECL = ALLL * weighted_average_remaining_life
     
-    ALLL = CglCurve['Charged Off'][12] - CglCurve['Charged Off'][0]
-    CECL = ALLL*1.5
+    # Calculate Ending Balance of snapshot
+    # Get last row of each loan group
+    last_upb = df.groupby('LOAN_ID').last()['CURRENT_UPB'].sum()
+    # Get charged off amount for each loan group
+    charged_off = df.groupby('LOAN_ID').last()['CHARGE_OFF_AMT'].sum()
+    # Calculate ending balance as sum of last UPB and charged off amounts
+    ending_balance = last_upb + charged_off
 
     # Calculate CECL Amount
     CECL_Amount = CECL * ending_balance
