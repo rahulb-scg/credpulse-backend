@@ -177,6 +177,7 @@ def calculator(df, data_config):
     # Get bucket values from config
     bucket_values = list(data_config['configuration']['loan_buckets']['bucket_map'].values())
     prediction_months = data_config['configuration']['prediction_months'] + 1
+    weighted_average_remaining_life = data_config['configuration']['WARL']
     # Current Distribution using dynamic bucket values
     distribution = (df.groupby(['LOAN_ID'])
                      .apply(lambda x: x.iloc[-1])
@@ -186,18 +187,31 @@ def calculator(df, data_config):
                      .loc[bucket_values])
     print("Created Distribution..")
     
-    CglCurve = Cgl_Curve(distribution, transition_matrix)
+    CglCurve = Cgl_Curve(distribution, transition_matrix, prediction_months)
     print("Created CGL Curve..")
+    
+    # Allowance for Loans and Lease Losses
+    ALLL = CglCurve['Charged Off'][prediction_months-1] - CglCurve['Charged Off'][0]
+    
+    # Calculate CECL Factor
+    CECL = ALLL * weighted_average_remaining_life
     
     ALLL = CglCurve['Charged Off'][12] - CglCurve['Charged Off'][0]
     CECL = ALLL*1.5
-    
+
+    # Calculate CECL Amount
+    CECL_Amount = CECL * ending_balance
+
     return {
         'Transition_Matrix': transition_matrix,
         'Distribution': distribution,
         'CGL_Curve': CglCurve,
         'ALLL': ALLL,
-        'CECL': CECL
+        'CECL_Factor': CECL,
+        "WARL": weighted_average_remaining_life,
+        "CECL_Amount": CECL_Amount,
+        "Opening_Balance": df['CURRENT_UPB'].sum(),
+        "Ending_Balance": ending_balance
     }
 
 
