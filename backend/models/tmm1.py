@@ -17,8 +17,8 @@ load_dotenv()
 OUTPUT_DIR = os.getenv('TMM1_OUTPUT_DIR', 'backend/test/test_data/Model Ready')
 OUTPUT_FILE = os.getenv('TMM1_OUTPUT_FILE', 'TMM1_360_bucket.csv')
 
-# Take a specific dataset from the data as required (ToDo: Add to Utils)
 
+# Take a specific dataset from the data as required (ToDo: Add to Utils)
 def data_sampler(df):
     print("Current shape of data: ", df.shape)
     
@@ -110,9 +110,9 @@ def feature_engg(df, data_config):
     return df_feature
 
 
-def Cgl_Curve(distribution, transition_matrix, prediction_months):
+def Cgl_Curve(distribution, transition_matrix, forecasted_months):
     Cgl_Curve = []
-    for i in range(prediction_months):
+    for i in range(forecasted_months + 1):
         state_probability = np.dot(distribution, np.linalg.matrix_power(transition_matrix, i))
         Cgl_Curve.append([f"Period_{i}"] + state_probability.tolist())
 
@@ -176,8 +176,8 @@ def calculator(df, data_config):
 
     # Get bucket values from config
     bucket_values = list(data_config['configuration']['loan_buckets']['bucket_map'].values())
-    prediction_months = data_config['configuration']['prediction_months'] + 1
-    weighted_average_remaining_life = data_config['configuration']['WARL']
+    forecasted_months = data_config['configuration']['forecasted_months']
+    weighted_average_life = data_config['configuration']['WAL']
     # Current Distribution using dynamic bucket values
     distribution = (df.groupby(['LOAN_ID'])
                      .apply(lambda x: x.iloc[-1])
@@ -187,15 +187,21 @@ def calculator(df, data_config):
                      .loc[bucket_values])
     print("Created Distribution..")
     
-    CglCurve = Cgl_Curve(distribution, transition_matrix, prediction_months)
+    CglCurve = Cgl_Curve(distribution, transition_matrix, forecasted_months)
     print("Created CGL Curve..")
     
     # Allowance for Loans and Lease Losses
-    ALLL = CglCurve['Charged Off'][prediction_months-1] - CglCurve['Charged Off'][0]
+    ALLL = CglCurve['Charged Off'][forecasted_months] - CglCurve['Charged Off'][0]
     
     # Calculate CECL Factor
-    CECL = ALLL * weighted_average_remaining_life
-    
+    CECL = ALLL * weighted_average_life
+
+    # Calculate Origination Amount of Snapshot
+    origination_amount = df.groupby('LOAN_ID').first()['ORIG_UPB'].sum()
+
+    # Calculate Opening Balance of snapshot
+    opening_balance = df.groupby('LOAN_ID').first()['CURRENT_UPB'].sum()
+
     # Calculate Ending Balance of snapshot
     # Get last row of each loan group
     last_upb = df.groupby('LOAN_ID').last()['CURRENT_UPB'].sum()
@@ -203,6 +209,12 @@ def calculator(df, data_config):
     charged_off = df.groupby('LOAN_ID').last()['CHARGE_OFF_AMT'].sum()
     # Calculate ending balance as sum of last UPB and charged off amounts
     ending_balance = last_upb + charged_off
+
+    # Calculating Forecast Period based on Snapshot Date and Forecasted Months
+    # Convert snapshot date string to datetime
+    snapshot_date = pd.to_datetime(data_config['configuration']['Snapshot_Date'])
+    forecasted_period_from = snapshot_date.strftime('%B %Y')
+    forecasted_period_to = (snapshot_date + pd.DateOffset(months=forecasted_months)).strftime('%B %Y')
 
     # Calculate CECL Amount
     CECL_Amount = CECL * ending_balance
@@ -213,10 +225,15 @@ def calculator(df, data_config):
         'CGL_Curve': CglCurve,
         'ALLL': ALLL,
         'CECL_Factor': CECL,
-        "WARL": weighted_average_remaining_life,
+        "WAL": weighted_average_life,
         "CECL_Amount": CECL_Amount,
-        "Opening_Balance": df['CURRENT_UPB'].sum(),
-        "Ending_Balance": ending_balance
+        "Opening_Balance": opening_balance,
+        "Ending_Balance": ending_balance,
+        "Origination_Amount": origination_amount,
+        "Snapshot_Date": data_config['configuration']['Snapshot_Date'],
+        "Forecasted_Months": forecasted_months,
+        "Forecasted_Period_From": forecasted_period_from,
+        "Forecasted_Period_To": forecasted_period_to
     }
 
 
@@ -225,15 +242,6 @@ def run_model(df, data_config):
     
     filtered_loan_data = data_sampler(df)
     feature_engineered_loan_data = feature_engg(filtered_loan_data, data_config)
-
-    # print("Exporting Model-Ready Data to CSV..")
-    
-    # output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
-    # try:
-    #     loan_data.to_csv(output_path)
-    #     print(f"File saved successfully to {output_path}")
-    # except Exception as e:
-    #     print(f"An error occurred while saving the file: {e}")
 
     calculator_output = calculator(feature_engineered_loan_data, data_config)
     # output_with_visuals = visualiser(calculator_output)
