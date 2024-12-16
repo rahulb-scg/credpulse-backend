@@ -178,6 +178,7 @@ def calculator(df, data_config):
     bucket_values = list(data_config['configuration']['loan_buckets']['bucket_map'].values())
     forecasted_months = data_config['configuration']['forecasted_months']
     weighted_average_life = data_config['configuration']['WAL']
+    
     # Current Distribution using dynamic bucket values
     distribution = (df.groupby(['LOAN_ID'])
                      .apply(lambda x: x.iloc[-1])

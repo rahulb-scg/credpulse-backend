@@ -29,7 +29,6 @@ def replace_values(df, data_config):
 
 
 def preprocess(df, data_config):
-
     # Handling duplicates in the data
     df_duplicate_handled = duplicate_handler.handle_duplicates(df)
     print("Duplicate Handling Complete")
@@ -41,7 +40,10 @@ def preprocess(df, data_config):
 
     # Converting Column dtypes
     print("Converting column dtypes")
-    df_column_dtype_set = column_dtypes.convert_columns_dtype(df_values_replaced, data_config['configuration']['attributes']['dtype'])
+    df_column_dtype_set = column_dtypes.convert_columns_dtype(
+        df_values_replaced,
+        data_config
+    )
     print("Conversion complete")
 
     # Saving last operated dataset with a new name
