@@ -2,6 +2,7 @@
 import os
 import json
 from datetime import datetime
+import logging
 
 # Third-party imports
 from dotenv import load_dotenv
@@ -11,46 +12,149 @@ from pymongo import MongoClient
 
 # Local imports
 from backend import config
-from backend.ingestion import csv_source_handler, db_source_handler
+from backend.ingestion import csv_source_handler, db_source_handler, df_to_db
 
 # Load environment variables
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,  # Set to DEBUG level
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler("backend/logs/app.log"),
+        logging.StreamHandler()
+    ]
+)
+
 # Function to resolve file paths correctly
 def get_absolute_filepath(relative_path_to_target, script_path=os.path.dirname(__file__)):
-    script_path = script_path
-    relative_path = relative_path_to_target
-    full_path = os.path.join(script_path, relative_path)
-    
+    full_path = os.path.join(script_path, relative_path_to_target)
+    logging.debug(f"Resolved absolute file path: {full_path}")
     return full_path
 
 # Function to get test report configuration
-def get_test_report_config():
-    """Get test report configuration from environment variables"""
-    return {
-        'report_name': os.getenv('TEST_REPORT_NAME', 'TMM1_REPORT_'),
-        'description': os.getenv('TEST_REPORT_DESCRIPTION', 'TMM1_REPORT_DESCRIPTION'),
-        'model': os.getenv('TEST_REPORT_MODEL', 'TMM1'),
-        'config_file_csv': os.getenv('TEST_CONFIG_FILE_CSV', 'test/test_data/test_data.json'),
-        'config_file_db': os.getenv('TEST_CONFIG_FILE_DB', 'test/test_data/test_data.ini')
-    }
+def get_test_report_config(config_type='db'):
+    """Get test report configuration from environment variables based on the type of configuration."""
+    logging.debug(f"Getting test report configuration for type: {config_type}")
+    if config_type == 'csv':
+        config = {
+            'report_name': os.getenv('TEST_REPORT_NAME', 'TMM1_REPORT_'),
+            'description': os.getenv('TEST_REPORT_DESCRIPTION', 'TMM1_REPORT_DESCRIPTION'),
+            'model': os.getenv('TEST_REPORT_MODEL', 'TMM1'),
+            'config_file': os.getenv('TEST_CONFIG_FILE_CSV', 'test/test_data/test_data.json')
+        }
+    elif config_type == 'db':
+        config = {
+            'report_name': os.getenv('TEST_REPORT_NAME', 'TMM1_REPORT_'),
+            'description': os.getenv('TEST_REPORT_DESCRIPTION', 'TMM1_REPORT_DESCRIPTION'),
+            'model': os.getenv('TEST_REPORT_MODEL', 'TMM1'),
+            'config_file': os.getenv('TEST_CONFIG_FILE_DB', 'test/test_data/test_db.json')
+        }
+    else:
+        logging.error("Invalid config_type provided.")
+        raise ValueError("Invalid config_type. Use 'csv' or 'db'.")
+    
+    logging.debug(f"Configuration loaded: {config}")
+    return config
 
 # Function to process the file based on its extension
-def file_type_handler(file_path, dataFilePath):
-    # Get the file extension (lowercased for consistency)
-    file_extension = os.path.splitext(file_path)[1].lower()
-    print('File Extension is:', file_extension)
+def file_type_handler(configFilePath, dataFilePath=None):
+    try:
+        logging.debug(f"Opening configuration file: {configFilePath}")
+        with open(configFilePath, 'r') as f:
+            data_config = json.load(f)
+        
+        source_type = data_config['configuration']['source'].lower()
+        logging.info(f"Source type detected: {source_type}")
+        
+        if source_type == 'csv':
+            df, data_config = csv_source_handler.csv_handler(configFilePath, dataFilePath)
+            logging.info("CSV data ingested successfully.")
+            return df, data_config
+        elif source_type == 'db':
+            logging.info("Parsing Database Configuration file..")
+            connection_params = data_config['configuration']['attributes']['connection_details']
+            logging.debug(f"Connection parameters: {connection_params}")
+            df = db_source_handler.db_handler(connection_params=connection_params)
+            if df is not None:
+                logging.info("Database data ingested successfully.")
+            else:
+                logging.error("Failed to ingest data from the database.")
+            return df, data_config
+        else:
+            logging.error(f"Invalid source type '{source_type}' specified in configuration")
+            return None, None
+                
+    except FileNotFoundError:
+        logging.error(f"Configuration file not found: {configFilePath}")
+        return None, None
+    except json.JSONDecodeError:
+        logging.error(f"Invalid JSON in configuration file: {configFilePath}")
+        return None, None
+    except KeyError as e:
+        logging.error(f"Missing key in configuration: {str(e)}")
+        return None, None
+    except Exception as e:
+        logging.error(f"Unexpected error processing configuration: {str(e)}")
+        return None, None
 
-    if file_extension == '.json':
-        return csv_source_handler.csv_handler(file_path, dataFilePath)
-    elif file_extension == '.ini':
-        print('Parsing Database Configuration file..')
-        source_db_config = config.parser(file_path)
-        return db_source_handler.db_handler(connection_params=source_db_config)
-    elif file_extension == 3:
-        return "Option 3 selected"
-    else:
-        return "Invalid option"
+def data_source_handler(config_file, data_file_path, read_rows=None):
+    """
+    Handles data source based on the configuration file provided.
+
+    Parameters:
+    - config_file: Path to the configuration file (JSON format).
+    - data_file_path: Path to the data file (CSV, Excel, etc.).
+    - read_rows: Number of rows to read (optional).
+
+    Returns:
+    - DataFrame and data configuration.
+    """
+    data_config = {}
+    df = None
+
+    try:
+        logging.debug(f"Loading configuration file: {config_file}")
+        with open(config_file, 'r') as config:
+            data_config = json.load(config)
+
+        logging.info("Config file loaded successfully.")
+        logging.debug(f"Data configuration: {data_config}")
+
+        # Determine the source type from the configuration
+        source_type = data_config.get('source_type').lower()
+        logging.debug(f"Detected source type: {source_type}")
+
+        if source_type == 'csv':
+            df, data_config = csv_source_handler.csv_handler(config_file, data_file_path, read_rows)
+        elif source_type == 'excel':
+            df = pd.read_excel(data_file_path, nrows=read_rows)
+            logging.info(f"Dataset imported successfully from Excel. Imported {read_rows if read_rows else 'all'} rows")
+        elif source_type == 'db':
+            connection_params = data_config['configuration']['attributes']['connection_details']
+            df = db_source_handler.db_handler(connection_params=connection_params)
+            logging.info("Dataset imported successfully from Database.")
+        else:
+            logging.error(f"Unsupported source type: {source_type}")
+            return None, None
+
+    except FileNotFoundError as e:
+        logging.error(f"Error: The file {data_file_path} was not found.")
+    except pd.errors.ParserError as e:
+        logging.error(f"Error parsing data file: {e}")
+    except json.JSONDecodeError as e:
+        logging.error(f"Error: Failed to parse the configuration file. Invalid JSON: {e}")
+    except Exception as e:
+        logging.error(f"An unexpected error occurred: {e}")
+    finally:
+        if df is not None:
+            logging.debug(f"DataFrame shape: {df.shape}")
+        else:
+            logging.warning("DataFrame was not created due to an error.")
+        logging.info("Finished data import process.")
+
+    return df, data_config 
 
 def export_output(data: dict, file_name_prefix='', file_name_suffix='', file_path='./', save_to_mongodb=True):
     """
@@ -73,6 +177,7 @@ def export_output(data: dict, file_name_prefix='', file_name_suffix='', file_pat
 
     try:
         os.makedirs(export_folder, exist_ok=True)
+        logging.info(f"Export folder created: {export_folder}")
         
         # Initialize a dictionary to hold the JSON-compatible data
         json_export_data = {}
@@ -114,7 +219,7 @@ def export_output(data: dict, file_name_prefix='', file_name_suffix='', file_pat
         with open(json_file_path, 'w') as json_file:
             json.dump(json_export_data, json_file, indent=4, default=str)
         
-        print(f"Export completed successfully! Files are saved in: {export_folder}")
+        logging.info(f"Export completed successfully! Files are saved in: {export_folder}")
 
         return json_export_data
     

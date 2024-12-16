@@ -40,7 +40,7 @@ def upload_test_file(client):
 
 
 def test_download_valid_file(client, upload_test_file):
-    filename = 'test_db.ini'
+    filename = 'test_db.json'
     response = client.get(f'/download/{filename}')
     
     # Check if the file is being downloaded successfully

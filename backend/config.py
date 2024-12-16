@@ -1,12 +1,14 @@
 from configparser import ConfigParser
 from dotenv import load_dotenv
 import os
+import logging
 
 # Load environment variables
 load_dotenv()
 
 def get_credpulse_db_config():
     """Get database configuration from environment variables"""
+    logging.debug("Fetching database configuration.")
     return {
         'host': os.getenv('DB_HOST', 'localhost'),
         'port': os.getenv('DB_PORT', '5432'),
@@ -18,6 +20,7 @@ def get_credpulse_db_config():
 
 def get_mongo_config():
     """Get MongoDB configuration from environment variables"""
+    logging.debug("Fetching MongoDB configuration.")
     return {
         'host': os.getenv('MONGO_DB_HOST', 'localhost'),
         'port': os.getenv('MONGO_DB_PORT', '27017'),

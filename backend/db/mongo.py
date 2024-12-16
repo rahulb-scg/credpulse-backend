@@ -11,7 +11,7 @@ from pymongo.errors import ConnectionFailure, OperationFailure
 from backend import config
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def get_mongo_client():
@@ -22,7 +22,7 @@ def get_mongo_client():
     if mongo_config.get('username') and mongo_config.get('password'):
         connection_string = f"mongodb://{mongo_config['username']}:{mongo_config['password']}@{mongo_config['host']}:{mongo_config['port']}/"
 
-    # Replace with your actual connection string
+    logger.debug(f"MongoDB connection string: {connection_string}")
     client = MongoClient(connection_string)
         
     return client
