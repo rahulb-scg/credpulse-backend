@@ -1,6 +1,7 @@
 # Standard library imports
 import os
 from datetime import datetime
+import logging
 
 # Third-party imports
 from dotenv import load_dotenv
@@ -23,6 +24,8 @@ UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', './uploads')
 ALLOWED_EXTENSIONS = set(os.getenv('ALLOWED_EXTENSIONS', '').split(','))
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+logging.debug("Flask app initialized with upload folder: %s", UPLOAD_FOLDER)
+
 @app.route('/', methods=['GET'])
 def show_home():
     return jsonify({"message": "Hello from the Python backend!"})
@@ -31,10 +34,16 @@ def show_home():
 def ensure_folder(foldername=UPLOAD_FOLDER):
     if not os.path.exists(foldername):
         os.makedirs(foldername)
+        logging.info("Created upload folder: %s", foldername)
 
 # Function to check if the uploaded file is allowed
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    logging.error("File too large error: %s", error)
+    return jsonify({'error': 'File too large'}), 413
 
 @app.route('/upload', methods=['POST'])
 def upload_files():
@@ -65,7 +74,9 @@ def upload_files():
             file_path = os.path.join(upload_subfolder, filename)
             file.save(file_path)  # Save the file to the subfolder
             uploaded_files.append(filename)
+            logging.info(f"File '{filename}' uploaded successfully.")
         else:
+            logging.warning(f"File type not allowed: {file.filename}")
             return jsonify({'error': f'File type not allowed for {file.filename}'}), 400
 
     return jsonify({'message': 'Files uploaded successfully', 'files': uploaded_files}), 201
@@ -128,6 +139,7 @@ def new_report():
 
     # Run analysis
     result = main.main(config_file_path, data_file_path)
+    logging.debug("Analysis result: %s", result)
 
     # Prepare report data for MongoDB
     report_data = {
@@ -165,6 +177,7 @@ def new_report():
         "user_id": "",
         "result": result
     }
+    logging.info("Report data prepared for MongoDB.")
 
     # Save to MongoDB
     report_id = save_report(report_data)

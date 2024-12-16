@@ -17,32 +17,31 @@ load_dotenv()
 OUTPUT_DIR = os.getenv('TMM1_OUTPUT_DIR', 'backend/test/test_data/Model Ready')
 OUTPUT_FILE = os.getenv('TMM1_OUTPUT_FILE', 'TMM1_360_bucket.csv')
 
-# Take a specific dataset from the data as required (ToDo: Add to Utils)
 
+# Take a specific dataset from the data as required (ToDo: Add to Utils)
 def data_sampler(df):
     print("Current shape of data: ", df.shape)
     
-    # To remove a group with certain values
-
-    # Filtering to keep data of only 1 loan term
+    # STEP 1: Filter by loan term - keep all records for loans with desired terms
     print("Unique Loan Terms: ", df['ORIG_TERM'].unique())
-    values_to_remove= [180, 240, 120, 300, 324, 168, 288, 312, 144, 336, 179, 216, 276, 156, 228, 236, 204, 306, 
-                       264, 348, 198, 282, 311, 270, 252, 181, 150, 328, 155, 290,345,237,339,347,342,313,239]
+    values_to_keep = [360]  # specify the values you want to keep
     
-    df = df.groupby('ORIG_TERM').filter(lambda x: not any(x['ORIG_TERM'].isin(values_to_remove)))
+    # Get loan IDs where the loan term matches our criteria
+    valid_loan_ids = df[df['ORIG_TERM'].isin(values_to_keep)]['LOAN_ID'].unique()
+    # Filter to keep all records for these loan IDs
+    df = df[df['LOAN_ID'].isin(valid_loan_ids)]
+    
     print("Loan Terms considered: ", df['ORIG_TERM'].unique())
-    
     print("Current shape of data: ", df.shape)
 
-    # Creating a sample of 50% of this data
-    
+    # STEP 2: Sample the filtered data
     print("Sampling data: ", df.shape, end='\n\n')
     
-    # Step 1: Get unique Loan IDs and sample the specified fraction of them
+    # Get unique Loan IDs and sample 50% of them
     loan_ids = df['LOAN_ID'].unique()
-    sampled_loan_ids = pd.Series(loan_ids).sample(frac=0.5, random_state=42) # @Todo Make Dynamic
+    sampled_loan_ids = pd.Series(loan_ids).sample(frac=0.5, random_state=42)
 
-    # Step 2: Filter the original dataframe to include only the rows with the sampled Loan IDs
+    # Filter dataframe to only include sampled Loan IDs
     sampled_df = df[df['LOAN_ID'].isin(sampled_loan_ids)]
     print("Sampled data's shape: ", sampled_df.shape)
 
@@ -53,55 +52,67 @@ def data_sampler(df):
 def feature_engg(df, data_config):
     df_feature = df.copy()
 
-    print(df_feature.shape, "\n")
+    print(df_feature['DLQ_STATUS'].unique())
     df_feature = tmm1_data.prepare(df_feature, data_config)
     print(df_feature.shape, "\n")
 
+    # Get bucket configuration
+    bucket_config = data_config['configuration']['loan_buckets']
+    bucket_map = bucket_config['bucket_map']
+
     # Remove rows after DLQ Status is x marking as charged-off
     print("Unique DLQ Status in the dataset: ", df_feature['DLQ_STATUS'].unique())
-    # df_feature = df_feature.groupby('LOAN_ID').apply(filter_df).reset_index(drop=True)
-
-    print("Unique DLQ Status in the dataset after filtering", df_feature['DLQ_STATUS'].unique())
     print("Current shape of data: ", df_feature.shape)
 
-    # Mapping the Delq_Bucket
-    dqm_mapping = {0:'Current' , 1:'30 DPD' , 2:'60 DPD' , 3:'90 DPD' , 4:'Charged Off'}
-    print("Mapping Delq Buckets...")
+    # Create dynamic mappings from config
+    print("Creating dynamic mappings from configuration...")
+    days_past_due_mapping = {}
+    loan_status_mapping = {}
+    
+    for status_code, status_name in bucket_map.items():
+        days_past_due_mapping[status_code] = status_name
+        loan_status_mapping[status_code] = status_name
 
+    print("Mapping Delq Buckets...")
     # Apply the mapping function to create a new column 'days_past_due'
-    df_feature['DAYS_PAST_DUE'] = df_feature['DLQ_STATUS'].map(dqm_mapping)
+    df_feature['DAYS_PAST_DUE'] = df_feature['DLQ_STATUS'].astype(str).map(days_past_due_mapping)
     print("Creating 'Days Past Due' Column...")
 
-    # Mapping to Loan_status
-    loan_status = {0 : 'Current', 1:'30 DPD', 2:'60 DPD', 3:'90 DPD', 4: 'Charged Off'}
     print("Creating 'Derived Loan Status' Column...")
-    df_feature['DERIVED_LOAN_STATUS'] = df_feature['DLQ_STATUS'].map(loan_status)
+    df_feature['DERIVED_LOAN_STATUS'] = df_feature['DLQ_STATUS'].astype(str).map(loan_status_mapping)
     print(df_feature['DERIVED_LOAN_STATUS'].unique())
 
-    # Creating Next_Loan_Drived_Status
+    # Creating Next_Loan_Derived_Status
     print("Creating 'Next Derived Loan Status' Column...")
     df_feature['NEXT_DERIVED_LOAN_STATUS'] = df_feature.groupby('LOAN_ID')['DERIVED_LOAN_STATUS'].shift(-1).ffill()
 
+    # Get the charged off status name from config
+    charged_off_status = next((v for k, v in bucket_map.items() if 'charge' in v.lower() or 'default' in v.lower()), 
+                            list(bucket_map.values())[-1])  # fallback to last status if no charged off found
+
     # Ensuring clean data
     print("Further Cleaning...")
-    df_feature.loc[df_feature['DERIVED_LOAN_STATUS'] == 'Charged Off', 'NEXT_DERIVED_LOAN_STATUS'] = 'Charged Off'
+    df_feature.loc[df_feature['DERIVED_LOAN_STATUS'] == charged_off_status, 'NEXT_DERIVED_LOAN_STATUS'] = charged_off_status
     
     # Creating Next DPD Status
     df_feature['NEXT_DAYS_PAST_DUE'] = df_feature.groupby('LOAN_ID')['DAYS_PAST_DUE'].shift(-1).ffill()
 
     # Creating a new column with charged-off amount
     print("Creating 'Charged off Amount' Column...")
-    df_feature['CHARGE_OFF_AMT'] = df_feature.apply(lambda x: x['CURRENT_UPB'] if x['DERIVED_LOAN_STATUS'] == 'Charged Off' else 0, axis=1)
+    df_feature['CHARGE_OFF_AMT'] = df_feature.apply(
+        lambda x: x['CURRENT_UPB'] if x['DERIVED_LOAN_STATUS'] == charged_off_status else 0, 
+        axis=1
+    )
     
-    print("Changin value for unpaid balance where charge_off is applicable...")
-    df_feature.loc[df_feature['DERIVED_LOAN_STATUS'] == 'Charged Off', 'CURRENT_UPB'] = 0
+    print("Changing value for unpaid balance where charge_off is applicable...")
+    df_feature.loc[df_feature['DERIVED_LOAN_STATUS'] == charged_off_status, 'CURRENT_UPB'] = 0
 
     return df_feature
 
 
-def Cgl_Curve(distribution, transition_matrix):
+def Cgl_Curve(distribution, transition_matrix, forecasted_months):
     Cgl_Curve = []
-    for i in range(13):
+    for i in range(forecasted_months + 1):
         state_probability = np.dot(distribution, np.linalg.matrix_power(transition_matrix, i))
         Cgl_Curve.append([f"Period_{i}"] + state_probability.tolist())
 
@@ -152,43 +163,88 @@ def visualiser(output_before_visuals):
     visual2()
     return output_after_visuals
 
-def calculator(df):
-  
-    transition_matrix = pd.pivot_table(df, values='CURRENT_UPB', index='DERIVED_LOAN_STATUS', columns='NEXT_DERIVED_LOAN_STATUS', aggfunc='count', sort=False , fill_value = 0).pipe(lambda x: x.div(x.sum(axis = 1),axis = 0))
+def calculator(df, data_config):
+    # Create transition matrix
+    transition_matrix = pd.pivot_table(df, 
+                                     values='CURRENT_UPB', 
+                                     index='DERIVED_LOAN_STATUS', 
+                                     columns='NEXT_DERIVED_LOAN_STATUS', 
+                                     aggfunc='count', 
+                                     sort=False, 
+                                     fill_value=0).pipe(lambda x: x.div(x.sum(axis=1), axis=0))
     print("Created transition matrix..")
 
-    # Current Distribution
-    distribution = df.groupby(['LOAN_ID']).apply(lambda x:x.iloc[-1]).groupby(['DERIVED_LOAN_STATUS'])['CURRENT_UPB'].sum().pipe(lambda x:x/x.sum()).loc[['Current', '30 DPD', '60 DPD', '90 DPD' , 'Charged Off']]
+    # Get bucket values from config
+    bucket_values = list(data_config['configuration']['loan_buckets']['bucket_map'].values())
+    forecasted_months = data_config['configuration']['forecasted_months']
+    weighted_average_life = data_config['configuration']['WAL']
+    
+    # Current Distribution using dynamic bucket values
+    distribution = (df.groupby(['LOAN_ID'])
+                     .apply(lambda x: x.iloc[-1])
+                     .groupby(['DERIVED_LOAN_STATUS'])['CURRENT_UPB']
+                     .sum()
+                     .pipe(lambda x: x/x.sum())
+                     .loc[bucket_values])
     print("Created Distribution..")
     
-    CglCurve = Cgl_Curve(distribution , transition_matrix)
+    CglCurve = Cgl_Curve(distribution, transition_matrix, forecasted_months)
     print("Created CGL Curve..")
     
-    ALLL = CglCurve['Charged Off'][12] - CglCurve['Charged Off'][0]
+    # Allowance for Loans and Lease Losses
+    ALLL = CglCurve['Charged Off'][forecasted_months] - CglCurve['Charged Off'][0]
     
-    CECL = ALLL*1.5
-    
-    return {'Transition_Matrix':transition_matrix , 'Distribution':distribution , 'CGL_Curve' : CglCurve ,'ALLL':ALLL ,'CECL' : CECL}
+    # Calculate CECL Factor
+    CECL = ALLL * weighted_average_life
+
+    # Calculate Origination Amount of Snapshot
+    origination_amount = df.groupby('LOAN_ID').first()['ORIG_UPB'].sum()
+
+    # Calculate Opening Balance of snapshot
+    opening_balance = df.groupby('LOAN_ID').first()['CURRENT_UPB'].sum()
+
+    # Calculate Ending Balance of snapshot
+    # Get last row of each loan group
+    last_upb = df.groupby('LOAN_ID').last()['CURRENT_UPB'].sum()
+    # Get charged off amount for each loan group
+    charged_off = df.groupby('LOAN_ID').last()['CHARGE_OFF_AMT'].sum()
+    # Calculate ending balance as sum of last UPB and charged off amounts
+    ending_balance = last_upb + charged_off
+
+    # Calculating Forecast Period based on Snapshot Date and Forecasted Months
+    # Convert snapshot date string to datetime
+    snapshot_date = pd.to_datetime(data_config['configuration']['Snapshot_Date'])
+    forecasted_period_from = snapshot_date.strftime('%B %Y')
+    forecasted_period_to = (snapshot_date + pd.DateOffset(months=forecasted_months)).strftime('%B %Y')
+
+    # Calculate CECL Amount
+    CECL_Amount = CECL * ending_balance
+
+    return {
+        'Transition_Matrix': transition_matrix,
+        'Distribution': distribution,
+        'CGL_Curve': CglCurve,
+        'ALLL': ALLL,
+        'CECL_Factor': CECL,
+        "WAL": weighted_average_life,
+        "CECL_Amount": CECL_Amount,
+        "Opening_Balance": opening_balance,
+        "Ending_Balance": ending_balance,
+        "Origination_Amount": origination_amount,
+        "Snapshot_Date": data_config['configuration']['Snapshot_Date'],
+        "Forecasted_Months": forecasted_months,
+        "Forecasted_Period_From": forecasted_period_from,
+        "Forecasted_Period_To": forecasted_period_to
+    }
 
 
 def run_model(df, data_config):
     print("Preparing data for model...")
     
-    loan_data = data_sampler(df)
-    # print("Exporting Model-Ready Data to CSV..")
-    # loan_data.to_csv('test/test_data/Model Ready/TMM1_360_bucket_3.csv')
-    loan_data = feature_engg(loan_data, data_config)
+    filtered_loan_data = data_sampler(df)
+    feature_engineered_loan_data = feature_engg(filtered_loan_data, data_config)
 
-    # print("Exporting Model-Ready Data to CSV..")
-    
-    # output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
-    # try:
-    #     loan_data.to_csv(output_path)
-    #     print(f"File saved successfully to {output_path}")
-    # except Exception as e:
-    #     print(f"An error occurred while saving the file: {e}")
-
-    calculator_output = calculator(loan_data)
+    calculator_output = calculator(feature_engineered_loan_data, data_config)
     # output_with_visuals = visualiser(calculator_output)
 
     return calculator_output
