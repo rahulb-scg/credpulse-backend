@@ -21,8 +21,9 @@ class NewReportSchema(Schema):
         "validator_failed": "Report name must not be empty."
     })
     description = fields.String(required=False)
-    data_file = fields.Raw(required=True, error_messages={"required": "Data file is required."})
+    data_file = fields.Raw(required=False, error_messages={"required": "Data file is required."})
     config_file = fields.Raw(required=True, error_messages={"required": "Config file is required."})
+    data_source_type = fields.String(required=True, error_messages={"required": "Data source type is required."})
 
 
 # Example validation error handler

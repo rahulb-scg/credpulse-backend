@@ -1,73 +1,51 @@
-# Third-party imports
 import pandas as pd
+import logging
+from typing import Dict, Any
 
-def convert_columns_dtype(df, dtype_map):
+from .date_handler import convert_date_columns
+
+def convert_columns_dtype(df: pd.DataFrame, data_config: Dict[str, Any]) -> pd.DataFrame:
     """
-    Converts DataFrame columns to specified data types based on a dictionary map.
+    Convert DataFrame columns to specified data types based on configuration.
 
-    Parameters:
-    df (pd.DataFrame): The input DataFrame.
-    dtype_map (dict): A dictionary where the keys are column names, 
-                      and the values are the data types to convert the columns to.
+    Args:
+        df: The input DataFrame
+        data_config: Configuration dictionary containing date column information
+                    and data type mapping
 
     Returns:
-    pd.DataFrame: A DataFrame with converted column data types.
+        DataFrame with converted column data types
     """
+    try:
+        # Get dtype mapping from config
+        dtype_map = data_config['configuration']['attributes']['dtype']
+        
+        logging.info("Converting date columns...")
+        df = convert_date_columns(df, data_config)
 
-    # Custom function to convert unusual date formats (including 5 and 6 digits)
-    def convert_unusual_date(date_value):
-        # Handle missing or NaN values
-        if pd.isna(date_value):
-            return pd.NaT
         try:
-            # Convert any non-string values (like int or float) to string
-            date_value = str(date_value)
-            month = date_value[:-4]   # Extract single-digit month
-            year = date_value[-4:]   # Extract year
-            return pd.Timestamp(f"{year}-{month.zfill(2)}-28")  # Return as YYYY-MM-DD (with leading zero for month)
-
-        except:
-            # Return NaT (Not a Time) for invalid formats
-            return pd.NaT
-
-    # Combined function to check and convert columns based on multiple keywords
-    def convert_date_columns(df):
-        # Define keywords to search for in column names
-        date_columns = ['ORIG_DATE', 'ACT_PERIOD']
-        # Check unique values in each date column before conversion
-        for col in date_columns:
-            unique_values = df[col].unique()
-            print(f"Unique values in '{col}' before conversion:\n{unique_values}\n")
-
-        # Applying Conversion
-        df[date_columns] = df[date_columns].apply(lambda col: col.apply(convert_unusual_date))
-
-        # Check unique values in each column after conversion
-        for col in date_columns:
-            unique_values = df[col].unique()
-            print(f"Unique values in '{col}' after conversion:\n{unique_values}\n")
+            # Try to convert the whole DataFrame at once
+            df = df.astype(dtype_map)
+            logging.info("All columns converted successfully")
+        except Exception as e:
+            logging.warning(f"Bulk conversion failed: {e}. Attempting column-by-column conversion...")
+            
+            # If bulk conversion fails, try per-column conversion
+            for column, dtype in dtype_map.items():
+                try:
+                    df[column] = df[column].astype(dtype)
+                    logging.info(f"Column '{column}' converted to {dtype}")
+                except Exception as column_error:
+                    logging.error(f"Failed to convert column '{column}': {column_error}")
 
         return df
-
-    print("Handling dates...")
-    df_dates_converted = convert_date_columns(df)
-
-    temp = pd.DataFrame(None)
-    
-    try:
-        # Try to convert the whole DataFrame at once
-        df_dates_converted = df_dates_converted.astype(dtype_map)
-    except Exception as e:
-        print(f"Error during DataFrame conversion: {e}")
-        print("Attempting to identify problematic columns...")
         
-        # If error occurs, try per-column conversion
-        for column, dtype in dtype_map.items():
-            try:
-                df_dates_converted[column] = df_dates_converted[column].astype(dtype)
-            except Exception as column_error:
-                print(f"Error in column '{column}': {column_error}")
+    except KeyError as e:
+        logging.warning(f"Missing configuration key for data type conversion: {e}")
+        return df
+    except Exception as e:
+        logging.error(f"Error in data type conversion: {e}")
+        raise
 
-    temp = df_dates_converted
-    
-    return temp
+# For backward compatibility
+column_dtypes = convert_columns_dtype

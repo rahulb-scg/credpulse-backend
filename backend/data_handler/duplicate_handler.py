@@ -1,48 +1,50 @@
-def handle_duplicates(df, case="remove", subset=None, keep='first', inplace=False):
-    """
-    Function to check and handle duplicates in a dataset based on different cases.
+import pandas as pd
+import logging
 
-    Parameters:
-    df (pd.DataFrame): The input DataFrame to check for duplicates.
-    case (str): Defines how to handle duplicates. Options are:
-        - "remove": Removes duplicate records (default).
-        - "mark": Marks duplicate records in a new column called 'is_duplicate'.
-        - "count": Returns the number of duplicate records.
-        - "keep_last": Keeps the last occurrence of duplicates and removes others.
-    subset (list): List of columns to consider for duplicate checking (default is all columns).
-    keep (str): Specifies which duplicates to keep. Options are:
-        - 'first' (default): Keeps the first occurrence.
-        - 'last': Keeps the last occurrence.
-        - False: Drops all duplicates.
-    inplace (bool): If True, modifies the DataFrame in place. Otherwise, returns a new DataFrame.
+def handle_duplicates(df: pd.DataFrame, case: str = "remove", subset: list = None, 
+                     keep: str = 'first', inplace: bool = False) -> pd.DataFrame:
+    """
+    Handle duplicates in a dataset based on different cases.
+
+    Args:
+        df: The input DataFrame to check for duplicates
+        case: How to handle duplicates ('remove', 'mark', 'count', 'keep_last')
+        subset: List of columns to consider for duplicate checking
+        keep: Which duplicates to keep ('first', 'last', False)
+        inplace: If True, modifies the DataFrame in place
 
     Returns:
-    pd.DataFrame or int: Depending on the case, returns a DataFrame or an integer.
+        DataFrame with duplicates handled according to specified case
     """
-
-    # Check for duplicates
-    print("Checking for duplicates")
+    logging.info("Checking for duplicates")
     duplicate_exists = df.duplicated(subset=subset, keep=keep).any()
 
     if not duplicate_exists:
-        print("No duplicates found in the dataset.")
+        logging.info("No duplicates found in the dataset")
         return df
 
-    # Handle cases
     if case == "remove":
-        print(f"{duplicate_exists.shape[0]} duplicates found")
-        print("Removing duplicates...")
-        return df.drop_duplicates(subset=subset, keep='keep', inplace=True)
+        logging.info("Removing duplicates...")
+        if inplace:
+            df.drop_duplicates(subset=subset, keep=keep, inplace=True)
+            return df
+        return df.drop_duplicates(subset=subset, keep=keep)
 
     elif case == "mark":
-        print("Marking duplicates...")
+        logging.info("Marking duplicates...")
         df['is_duplicate'] = df.duplicated(subset=subset, keep=keep)
         return df
 
     elif case == "keep_last":
-        print("Keeping the last occurrence of duplicates...")
-        return df.drop_duplicates(subset=subset, keep='last', inplace=True)
+        logging.info("Keeping last occurrence of duplicates...")
+        if inplace:
+            df.drop_duplicates(subset=subset, keep='last', inplace=True)
+            return df
+        return df.drop_duplicates(subset=subset, keep='last')
 
     else:
-        print("Invalid case. Choose from: 'remove', 'mark', 'count', 'keep_last'.")
+        logging.warning("Invalid case. Choose from: 'remove', 'mark', 'count', 'keep_last'")
         return df
+
+# For backward compatibility
+duplicate_handler = handle_duplicates

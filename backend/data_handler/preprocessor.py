@@ -1,50 +1,74 @@
-from backend.data_handler import duplicate_handler, column_dtypes
+import logging
+import pandas as pd
+from typing import Dict, Any
 
-def replace_values(df, data_config):
+from .duplicate_handler import handle_duplicates
+from .column_dtypes import convert_columns_dtype
+from .missing_value_handler import handle_missing_values
+
+def replace_values(df: pd.DataFrame, data_config: Dict[str, Any]) -> pd.DataFrame:
     """
-    Function to replace values in a dataset such that it may cause errors with other operations.
+    Replace values in a dataset that may cause errors with other operations.
 
-    Parameters:
-    df (pd.DataFrame): The input DataFrame to check for duplicates.
-    data_config (file): The input dataset's configuration file
+    Args:
+        df: The input DataFrame
+        data_config: The input dataset's configuration
+
+    Returns:
+        DataFrame with replaced values
     """
+    try:
+        # Get replacement configuration
+        replace_config = data_config['configuration']['data_specific_functions']['replace_values'][0]
+        column_name = replace_config['column_name']
+        value_to_replace = replace_config['values_to_replace'][0]
+        value_to_replace_with = replace_config['values_to_replace_with'][0]
 
-    # Accessing column to perform the replace operation on
-    column_name = data_config['configuration']['data_specific_functions']['replace_values'][0]['column_name']
-    print(f"Replacing values in column: {column_name}")
+        logging.info(f"Replacing value '{value_to_replace}' with '{value_to_replace_with}' in column: {column_name}")
+        df[column_name] = df[column_name].replace(value_to_replace, value_to_replace_with)
+        
+        return df
+    except KeyError as e:
+        logging.warning(f"Missing configuration key for value replacement: {e}")
+        return df
+    except Exception as e:
+        logging.error(f"Error in value replacement: {e}")
+        raise
 
-    # Accessing value to replace
-    value_to_replace = data_config['configuration']['data_specific_functions']['replace_values'][0]['values_to_replace'][0]
-    print(f"Replacing value: {value_to_replace}")
+def preprocess(df: pd.DataFrame, data_config: Dict[str, Any] = None) -> pd.DataFrame:
+    """
+    Preprocess the input DataFrame with various data handling steps.
+
+    Args:
+        df: Input DataFrame to preprocess
+        data_config: Configuration dictionary for preprocessing steps
+
+    Returns:
+        Preprocessed DataFrame
+    """
+    logging.info("Starting data preprocessing pipeline")
     
-    # Accessing value to replace with
-    value_to_replace_with = data_config['configuration']['data_specific_functions']['replace_values'][0]['values_to_replace_with'][0]
-    print(f"Replacing value with: {value_to_replace_with}")
-
-    # Replacing Value
-    df[column_name] = df[column_name].replace(value_to_replace, value_to_replace_with)
-    print(df[column_name].unique())
-
-    return df
-
-
-def preprocess(df, data_config):
-
-    # Handling duplicates in the data
-    df_duplicate_handled = duplicate_handler.handle_duplicates(df)
-    print("Duplicate Handling Complete")
-
-    # Performing data-type specific replacement operations before coverting column dtypes
-    print("Handling value replacements")
-    df_values_replaced = replace_values(df_duplicate_handled, data_config)
-    print("Handling value replacements Complete")
-
-    # Converting Column dtypes
-    print("Converting column dtypes")
-    df_column_dtype_set = column_dtypes.convert_columns_dtype(df_values_replaced, data_config['configuration']['attributes']['dtype'])
-    print("Conversion complete")
-
-    # Saving last operated dataset with a new name
-    preprocessed_dataset = df_column_dtype_set
-    print(preprocessed_dataset.shape)
-    return(preprocessed_dataset)
+    try:
+        # Handle duplicates
+        logging.info("Handling duplicates")
+        df = handle_duplicates(df)
+        
+        if data_config:
+            # Replace values if config is provided
+            logging.info("Handling value replacements")
+            df = replace_values(df, data_config)
+            
+            # Convert column data types
+            logging.info("Converting column data types")
+            df = convert_columns_dtype(df, data_config)
+            
+            # Handle missing values
+            logging.info("Handling missing values")
+            df = handle_missing_values(df, data_config)
+        
+        logging.info(f"Preprocessing complete. Final shape: {df.shape}")
+        return df
+        
+    except Exception as e:
+        logging.error(f"Error in preprocessing pipeline: {e}")
+        raise
