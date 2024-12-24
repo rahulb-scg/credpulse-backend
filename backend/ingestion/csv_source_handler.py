@@ -30,10 +30,10 @@ def csv_handler(config_file, dataFilePath='test/test_data/test_data.csv', read_r
         if dataFilePath is None:
             dataFilePath = data_config['configuration']['attributes']['filepath']
             logging.debug("Using filepath from config: %s", dataFilePath)
+            dataFilePath = get_absolute_filepath(dataFilePath)
         
         # Get absolute path
         
-        dataFilePath = get_absolute_filepath(dataFilePath)
         # Check and fix path if needed
         if dataFilePath == "E:\\CredPulse_Backend\\backend\\test_data.csv":
             dataFilePath = "E:\\CredPulse_Backend\\backend\\test\\test_data\\test_data.csv"

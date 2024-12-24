@@ -110,35 +110,43 @@ def new_report():
         # Validate request form data
         schema = NewReportSchema()
         form_data = request.form.to_dict()
-        form_data['data_file'] = request.files.get('data_file')
-        form_data['config_file'] = request.files.get('config_file')
+        form_data['config_file'] = request.files.get('config_file')  # Always required
         schema.load(form_data)
+        logging.debug("Form data validated successfully: %s", form_data)
     except ValidationError as err:
+        logging.error("Validation error: %s", err.messages)
         return handle_validation_error(err)
     
     # Extract form data
     report_name = form_data['report_name']
     description = form_data.get('description', '')
+    logging.debug("Extracted report name: %s, description: %s", report_name, description)
 
     request_received_at = datetime.now().isoformat()
+    logging.debug("Request received at: %s", request_received_at)
 
     # Create report folder and save files
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     report_folder = os.path.join(app.config['UPLOAD_FOLDER'], f"{report_name}_{timestamp}")
     ensure_folder(report_folder)
+    logging.debug("Report folder created at: %s", report_folder)
 
-    # Save files
-    data_file = request.files.get('data_file')
+    # Save config file
     config_file = request.files.get('config_file')
-    
-    data_file_path = os.path.join(report_folder, secure_filename(data_file.filename))
     config_file_path = os.path.join(report_folder, secure_filename(config_file.filename))
-
-    data_file.save(data_file_path)
     config_file.save(config_file_path)
+    logging.info("Config file saved at: %s", config_file_path)
 
-    # Run analysis
-    result = main.main(config_file_path, data_file_path)
+    # Check if data file is provided
+    data_file_path = None
+    if 'data_file' in request.files and request.files['data_file']:
+        data_file = request.files['data_file']
+        data_file_path = os.path.join(report_folder, secure_filename(data_file.filename))
+        data_file.save(data_file_path)
+        logging.info("Data file saved at: %s", data_file_path)
+
+    # Run analysis with or without data file
+    result = main.main(config_file_path, data_file_path, config_type='db')  # Pass config_type
     logging.debug("Analysis result: %s", result)
 
     # Prepare report data for MongoDB
@@ -160,10 +168,10 @@ def new_report():
         },
         "files": {
             # Data file
-            "data_name": data_file.filename,
-            "data_size": os.path.getsize(data_file_path),
-            "data_type": data_file.content_type,
-            "data_url": data_file_path,
+            "data_name": data_file.filename if data_file_path else 'Mot Valid',
+            "data_size": os.path.getsize(data_file_path) if data_file_path else 0,
+            "data_type": data_file.content_type if data_file_path else 'db',
+            "data_url": data_file_path if data_file_path else '',
 
             # Config file
             "config_name": config_file.filename,
@@ -177,10 +185,11 @@ def new_report():
         "user_id": "",
         "result": result
     }
-    logging.info("Report data prepared for MongoDB.")
+    logging.info("Report data prepared for MongoDB: %s", report_data)
 
     # Save to MongoDB
     report_id = save_report(report_data)
+    logging.info("Report saved to MongoDB with ID: %s", report_id)
 
     # Return response with MongoDB ID
     return jsonify({

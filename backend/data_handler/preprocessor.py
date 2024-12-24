@@ -1,4 +1,4 @@
-from backend.data_handler import duplicate_handler, column_dtypes
+from . import duplicate_handler, column_dtypes, missing_value_handler
 
 def replace_values(df, data_config):
     """
@@ -46,7 +46,17 @@ def preprocess(df, data_config):
     )
     print("Conversion complete")
 
+    # Handling Outliers
+
+    # Handling missing values
+    print("Handling missing values")
+    df_missing_values_handled = missing_value_handler.handle_missing_values(
+        df_column_dtype_set,
+        data_config
+    )
+    print("Handling missing values Complete")
+
     # Saving last operated dataset with a new name
-    preprocessed_dataset = df_column_dtype_set
+    preprocessed_dataset = df_missing_values_handled
     print(preprocessed_dataset.shape)
     return(preprocessed_dataset)

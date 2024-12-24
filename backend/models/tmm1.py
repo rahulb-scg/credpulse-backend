@@ -50,7 +50,7 @@ def data_sampler(df):
 #   Feature Engneering
 #   The function gets the loan data it takes down the required columns ans then we return the Feature Engineered loan_data
 def feature_engg(df, data_config):
-    df_feature = df.copy()
+    df_feature = df
 
     print(df_feature['DLQ_STATUS'].unique())
     df_feature = tmm1_data.prepare(df_feature, data_config)
@@ -106,7 +106,7 @@ def feature_engg(df, data_config):
     
     print("Changing value for unpaid balance where charge_off is applicable...")
     df_feature.loc[df_feature['DERIVED_LOAN_STATUS'] == charged_off_status, 'CURRENT_UPB'] = 0
-
+    
     return df_feature
 
 
