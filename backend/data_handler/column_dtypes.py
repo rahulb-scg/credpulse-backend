@@ -1,43 +1,51 @@
-# Third-party imports
 import pandas as pd
+import logging
+from typing import Dict, Any
 
-# Local imports
-from backend.data_handler.date_handler import convert_date_columns
+from .date_handler import convert_date_columns
 
-def convert_columns_dtype(df, data_config):
+def convert_columns_dtype(df: pd.DataFrame, data_config: Dict[str, Any]) -> pd.DataFrame:
     """
-    Converts DataFrame columns to specified data types based on configuration.
+    Convert DataFrame columns to specified data types based on configuration.
 
-    Parameters:
-    df (pd.DataFrame): The input DataFrame.
-    data_config (dict): Configuration dictionary containing date column information
-                       and data type mapping.
+    Args:
+        df: The input DataFrame
+        data_config: Configuration dictionary containing date column information
+                    and data type mapping
 
     Returns:
-    pd.DataFrame: A DataFrame with converted column data types.
+        DataFrame with converted column data types
     """
-    # Get dtype mapping from config
-    dtype_map = data_config['configuration']['attributes']['dtype']
-
-    print("Handling dates...")
-    df_dates_converted = convert_date_columns(df, data_config)
-
-    temp = pd.DataFrame(None)
-    
     try:
-        # Try to convert the whole DataFrame at once
-        df_dates_converted = df_dates_converted.astype(dtype_map)
-    except Exception as e:
-        print(f"Error during DataFrame conversion: {e}")
-        print("Attempting to identify problematic columns...")
+        # Get dtype mapping from config
+        dtype_map = data_config['configuration']['attributes']['dtype']
         
-        # If error occurs, try per-column conversion
-        for column, dtype in dtype_map.items():
-            try:
-                df_dates_converted[column] = df_dates_converted[column].astype(dtype)
-            except Exception as column_error:
-                print(f"Error in column '{column}': {column_error}")
+        logging.info("Converting date columns...")
+        df = convert_date_columns(df, data_config)
 
-    temp = df_dates_converted
-    
-    return temp
+        try:
+            # Try to convert the whole DataFrame at once
+            df = df.astype(dtype_map)
+            logging.info("All columns converted successfully")
+        except Exception as e:
+            logging.warning(f"Bulk conversion failed: {e}. Attempting column-by-column conversion...")
+            
+            # If bulk conversion fails, try per-column conversion
+            for column, dtype in dtype_map.items():
+                try:
+                    df[column] = df[column].astype(dtype)
+                    logging.info(f"Column '{column}' converted to {dtype}")
+                except Exception as column_error:
+                    logging.error(f"Failed to convert column '{column}': {column_error}")
+
+        return df
+        
+    except KeyError as e:
+        logging.warning(f"Missing configuration key for data type conversion: {e}")
+        return df
+    except Exception as e:
+        logging.error(f"Error in data type conversion: {e}")
+        raise
+
+# For backward compatibility
+column_dtypes = convert_columns_dtype
