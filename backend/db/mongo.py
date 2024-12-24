@@ -20,17 +20,58 @@ class MongoDBClient:
     def _get_client(self) -> MongoClient:
         """Create and return MongoDB client."""
         try:
-            mongo_uri = f"mongodb://{self.mongo_config['user']}:{self.mongo_config['password']}@{self.mongo_config['host']}:{self.mongo_config['port']}/?authSource={self.mongo_config['auth_source']}"
-            client = MongoClient(mongo_uri)
-            # Verify connection
+            # Build connection string with proper URL encoding
+            credentials = f"{self.mongo_config['user']}:{self.mongo_config['password']}"
+            host = f"{self.mongo_config['host']}:{self.mongo_config['port']}"
+            auth_source = self.mongo_config.get('auth_source', 'admin')
+            
+            # First try connecting without auth to check if auth is required
+            try:
+                no_auth_client = MongoClient(
+                    f"mongodb://{host}/",
+                    serverSelectionTimeoutMS=2000,
+                    connectTimeoutMS=2000
+                )
+                no_auth_client.admin.command('ping')
+                logging.info("Connected to MongoDB without authentication")
+                return no_auth_client
+            except Exception:
+                logging.info("Attempting connection with authentication...")
+            
+            # Create the connection URI with authentication
+            mongo_uri = f"mongodb://{credentials}@{host}/?authSource={auth_source}"
+            
+            # Create client with proper options
+            client = MongoClient(
+                mongo_uri,
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=5000,
+                socketTimeoutMS=5000,
+                retryWrites=True,
+                w='majority'
+            )
+            
+            # Test connection and authentication
             client.admin.command('ping')
+            
+            # Initialize database and collection
+            db = client[self.mongo_config['database']]
+            collection = db[self.mongo_config['collection']]
+            
+            # Verify we can access the collection
+            collection.find_one()
+            
             logging.info("Successfully connected to MongoDB")
             return client
+            
         except ConnectionFailure as e:
-            logging.error(f"Failed to connect to MongoDB: {e}")
+            logging.error(f"Failed to connect to MongoDB: {str(e)}", exc_info=True)
             raise
         except OperationFailure as e:
-            logging.error(f"Authentication failed: {e}")
+            logging.error(f"MongoDB authentication failed: {str(e)}", exc_info=True)
+            raise
+        except Exception as e:
+            logging.error(f"Unexpected error connecting to MongoDB: {str(e)}", exc_info=True)
             raise
 
     def insert_report(self, report_data: Dict[str, Any]) -> str:
@@ -97,18 +138,24 @@ class MongoDBClient:
                 {},
                 {
                     'report_name': 1,
-                    'processed_at': 1,
+                    'description': 1,
                     'type': 1,
                     'status': 1,
+                    'created_at': 1,
+                    'processed_at': 1,
+                    'files.config_name': 1,
+                    'files.data_name': 1,
+                    'result.summary': 1,
                     '_id': 1
                 }
-            ).sort('processed_at', -1).skip(skip).limit(page_size))
+            ).sort('created_at', -1).skip(skip).limit(page_size))
             
             # Convert ObjectId to string and format datetime
             for report in reports:
                 report['_id'] = str(report['_id'])
-                if isinstance(report.get('processed_at'), datetime):
-                    report['processed_at'] = report['processed_at'].isoformat()
+                for field in ['created_at', 'processed_at']:
+                    if isinstance(report.get(field), datetime):
+                        report[field] = report[field].isoformat()
             
             # Calculate pagination metadata
             total_pages = (total_reports + page_size - 1) // page_size
@@ -137,15 +184,27 @@ class MongoDBClient:
             self.client.close()
             logging.info("MongoDB connection closed")
 
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.close()
+
 # Function-based interface for backward compatibility
 _mongo_client = None
 
 def _get_mongo_client() -> MongoDBClient:
     """Get or create a MongoDB client instance."""
     global _mongo_client
-    if _mongo_client is None:
-        _mongo_client = MongoDBClient()
-    return _mongo_client
+    try:
+        if _mongo_client is None:
+            _mongo_client = MongoDBClient()
+        return _mongo_client
+    except Exception as e:
+        logging.error(f"Failed to get MongoDB client: {str(e)}", exc_info=True)
+        raise
 
 def save_report(report_data: Dict[str, Any]) -> str:
     """Backward-compatible function to save a report."""
