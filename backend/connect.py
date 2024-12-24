@@ -1,42 +1,21 @@
-# Third-party imports
 import psycopg2
-from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
+from psycopg2.extras import RealDictCursor
+import logging
+import sys
 
-# Local imports
-from backend import config
+from backend.config import config
 
-# Database Connection
-
-def connect():
-    """ Connect to the PostgreSQL database server """
-    conn = None
-
+def get_db_connection():
+    """
+    Create a database connection using configuration parameters
+    Returns:
+        connection: psycopg2 connection object
+    """
     try:
-        # read connection parameters
-        params = config.get_credpulse_db_config()
-
-        # connect to the PostgreSQL server
-        print('Connecting to the PostgreSQL database...')
-        connection_string = f"postgresql://{params['user']}:{params['password']}@{params['host']}:{params['port']}/{params['database']}"
-
-        engine = create_engine(connection_string)
-        
-        conn = engine.connect()
-
-        # display the PostgreSQL database server version
-        result = conn.execute(text("SELECT version();"))
-        version = result.fetchone()
-        
-        print(f"PostgreSQL version: {version[0]}")
-
-    except(Exception, psycopg2.DatabaseError) as error:
-        print(error)
-    finally:
-        if conn is not None:
-            print("Database Connection Established...")
-            return engine, params
-        
-
-if __name__ == '__main__':
-    connect()
+        params = config.database
+        logging.info(f"Connecting to PostgreSQL database: {params['database']}")
+        connection = psycopg2.connect(**params, cursor_factory=RealDictCursor)
+        return connection
+    except (Exception, psycopg2.DatabaseError) as error:
+        logging.error(f"Error connecting to PostgreSQL database: {error}")
+        sys.exit(1)
