@@ -19,7 +19,6 @@ CORS(app)
 
 # Configure app from config
 app.config['UPLOAD_FOLDER'] = config.flask['upload_folder']
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 ALLOWED_EXTENSIONS = config.flask['allowed_extensions']
 
 # Configure logging
@@ -175,38 +174,98 @@ def new_report():
 def view_report(report_id: str):
     """View a specific report by its ID."""
     try:
+        if not report_id:
+            logging.warning("Report ID is required but was empty")
+            return jsonify({"error": "Report ID is required"}), 400
+
+        logging.info(f"Attempting to retrieve report with ID: {report_id}")
         report = get_report(report_id)
-        if report:
+        
+        if not report:
+            logging.info(f"No report found with ID: {report_id}")
             return jsonify({
-                "message": "Report found",
-                "report": report
-            }), 200
-        return jsonify({"error": "Report not found"}), 404
+                "error": "Report not found",
+                "report_id": report_id
+            }), 404
+
+        # Ensure all datetime fields are properly formatted
+        for field in ['created_at', 'processed_at']:
+            if isinstance(report.get(field), datetime):
+                report[field] = report[field].isoformat()
+
+        response_data = {
+            "message": "Report found",
+            "data": {
+                "report_id": report['_id'],
+                "report_name": report.get('report_name'),
+                "description": report.get('description'),
+                "type": report.get('type'),
+                "status": report.get('status'),
+                "created_at": report.get('created_at'),
+                "files": report.get('files', {}),
+                "result": report.get('result', {})
+            }
+        }
+        logging.info(f"Successfully retrieved report: {report_id}")
+        return jsonify(response_data), 200
+
+    except ValueError as e:
+        logging.error(f"Invalid report ID format: {str(e)}")
+        return jsonify({"error": "Invalid report ID format"}), 400
     except Exception as e:
-        logging.error(f"Error retrieving report: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"Error retrieving report: {str(e)}", exc_info=True)
+        return jsonify({"error": "Failed to retrieve report", "details": str(e)}), 500
 
 @app.route('/listreports', methods=['GET'])
 def list_reports_route():
     """List reports with pagination."""
     try:
-        page = int(request.args.get('page', 1))
-        page_size = int(request.args.get('page_size', 20))
+        try:
+            page = int(request.args.get('page', 1))
+            page_size = int(request.args.get('page_size', 20))
+        except ValueError:
+            logging.error("Invalid pagination parameters")
+            return jsonify({"error": "Invalid pagination parameters"}), 400
 
         if page < 1:
+            logging.warning("Page number must be greater than 0")
             return jsonify({"error": "Page number must be greater than 0"}), 400
         if page_size < 1 or page_size > 100:
+            logging.warning("Page size must be between 1 and 100")
             return jsonify({"error": "Page size must be between 1 and 100"}), 400
 
+        logging.info(f"Attempting to list reports with page={page}, page_size={page_size}")
         result = list_reports(page=page, page_size=page_size)
+        
+        if not result or not result.get('reports'):
+            logging.info("No reports found")
+            return jsonify({
+                "message": "No reports found",
+                "data": {
+                    "reports": [],
+                    "pagination": {
+                        "total_reports": 0,
+                        "total_pages": 0,
+                        "current_page": page,
+                        "page_size": page_size,
+                        "has_next": False,
+                        "has_prev": False
+                    }
+                }
+            }), 200
+
+        logging.info(f"Successfully retrieved {len(result['reports'])} reports")
         return jsonify({
             "message": "Reports retrieved successfully",
             "data": result
         }), 200
 
     except Exception as e:
-        logging.error(f"Error listing reports: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"Error listing reports: {str(e)}", exc_info=True)
+        return jsonify({
+            "error": "Failed to retrieve reports",
+            "details": str(e)
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
